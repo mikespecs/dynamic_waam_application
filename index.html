@@ -1,0 +1,919 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WAAM Marine Suitability Studio</title>
+    <link rel="stylesheet" href="./public/styles.css" type="text/css"/>
+    <script src="https://unpkg.com/three@0.165.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.165.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/three@0.165.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      const components = [
+        {
+          id: "propeller",
+          name: "Propeller",
+          category: "Rotating marine hardware",
+          summary:
+            "High-cavitation rotating geometry where surface integrity, vibration response, and seawater corrosion resistance drive the recommendation.",
+          purposeDefault: "propulsion",
+          objPath: "./models/propeller.obj",
+          componentModifiers: {
+            isMovingPart: true,
+            flowExposure: 1.5,
+            biofoulingSensitivity: 1.2,
+          },
+        },
+        {
+          id: "bracket",
+          name: "Bracket",
+          category: "Support connection",
+          summary:
+            "Compact structural connector for mounted subsea equipment with mixed bending, vibration, and local impact demands.",
+          purposeDefault: "equipment_support",
+          objPath: "./models/bracket.obj",
+          componentModifiers: {
+            isMovingPart: false,
+            flowExposure: 0.8,
+            biofoulingSensitivity: 1.1,
+          },
+        },
+        {
+          id: "pile",
+          name: "Fixed pile / leg",
+          category: "Foundation member",
+          summary:
+            "Vertical seabed support member exposed to steady compression, cyclic wave loading, and long-term corrosion risk at depth.",
+          purposeDefault: "foundation_support",
+          objPath: "./models/pile.obj",
+          componentModifiers: {
+            isMovingPart: false,
+            flowExposure: 0.6,
+            biofoulingSensitivity: 1.3,
+          },
+        },
+        {
+          id: "hull_insert",
+          name: "Hull insert",
+          category: "Hull integration",
+          summary:
+            "Plate-like structural insert used in vessel or subsea hull retrofits where weldability and fatigue behavior matter.",
+          purposeDefault: "hull_repair",
+          objPath: "./models/hull_insert.obj",
+          componentModifiers: {
+            isMovingPart: false,
+            flowExposure: 1.0,
+            biofoulingSensitivity: 1.2,
+          },
+        },
+        {
+          id: "bridge_foundation",
+          name: "Bridge foundation node",
+          category: "Civil marine transition",
+          summary:
+            "Heavy submerged node with high static load, sediment interaction, and durability requirements under variable salinity.",
+          purposeDefault: "bridge_support",
+          objPath: "./models/bridge_foundation.obj",
+          componentModifiers: {
+            isMovingPart: false,
+            flowExposure: 0.7,
+            biofoulingSensitivity: 1.4,
+          },
+        },
+        {
+          id: "vessel_body",
+          name: "Small vessel body",
+          category: "Fabricated shell",
+          summary:
+            "Concept shell for additively manufactured marine craft sections where weight, stiffness, and corrosion response need balancing.",
+          purposeDefault: "lightweight_vessel",
+          objPath: "./models/vessel_body.obj",
+          componentModifiers: {
+            isMovingPart: false,
+            flowExposure: 1.3,
+            biofoulingSensitivity: 1.3,
+          },
+        },
+      ];
+
+      const materials = [
+        {
+          id: "nickel_aluminum_bronze",
+          name: "CuAl8Ni6 / Nickel Aluminum Bronze",
+          family: "Marine bronze wire",
+          strengths: ["cavitation resistance", "seawater corrosion resistance", "deep subsea baseline"],
+          baseScore: 85,
+          thumbnail: "./models/thumbnails/nickel_aluminum_bronze.svg",
+          corrosionModifiers: {
+            pH: 0.8,
+            salinity: 0.7,
+            pollution: 1.2,
+            temperature: 1.0,
+            turbidity: 1.1,
+            biofouling: 1.3,
+            flowVelocity: 1.4,
+            movingPart: 1.5,
+          },
+        },
+        {
+          id: "al_sc_5183",
+          name: "S Al 5183 (Al-Sc)",
+          family: "Lightweight aluminum-scandium wire",
+          strengths: ["mass reduction", "stiffness-to-weight efficiency", "agile moving parts"],
+          baseScore: 74,
+          thumbnail: "./models/thumbnails/al_sc_5183.svg",
+          corrosionModifiers: {
+            pH: 1.4,
+            salinity: 1.6,
+            pollution: 1.3,
+            temperature: 1.2,
+            turbidity: 1.3,
+            biofouling: 1.4,
+            flowVelocity: 1.5,
+            movingPart: 1.2,
+          },
+        },
+        {
+          id: "duplex_stainless",
+          name: "Duplex stainless wire",
+          family: "Corrosion-tolerant steel",
+          strengths: ["chloride tolerance", "cyclic loading", "fixed structures"],
+          baseScore: 80,
+          thumbnail: "./models/thumbnails/duplex_stainless.svg",
+          corrosionModifiers: {
+            pH: 1.0,
+            salinity: 0.6,
+            pollution: 1.1,
+            temperature: 1.1,
+            turbidity: 1.2,
+            biofouling: 1.3,
+            flowVelocity: 1.3,
+            movingPart: 1.0,
+          },
+        },
+        {
+          id: "inconel_625",
+          name: "Inconel 625 wire",
+          family: "Nickel superalloy",
+          strengths: ["thermal swings", "pressure", "aggressive chemistry"],
+          baseScore: 78,
+          thumbnail: "./models/thumbnails/inconel_625.svg",
+          corrosionModifiers: {
+            pH: 0.7,
+            salinity: 0.7,
+            pollution: 0.9,
+            temperature: 0.8,
+            turbidity: 1.0,
+            biofouling: 1.1,
+            flowVelocity: 1.1,
+            movingPart: 1.0,
+          },
+        },
+      ];
+
+      const purposeOptions = [
+        { id: "foundation_support", label: "Fixed pile / leg support" },
+        { id: "bridge_support", label: "Bridge foundation" },
+        { id: "hull_repair", label: "Hull insert / repair" },
+        { id: "propulsion", label: "Propeller / thrust component" },
+        { id: "lightweight_vessel", label: "Vessel shell or craft section" },
+        { id: "equipment_support", label: "Bracket / mounted subsystem" },
+      ];
+
+      const optionSets = {
+        loadProfiles: [
+          { id: "steady", label: "Steady load dominated" },
+          { id: "mixed", label: "Mixed steady and cyclic" },
+          { id: "cyclic", label: "High cyclic / fatigue driven" },
+        ],
+        cavitation: [
+          { id: "low", label: "Low" },
+          { id: "medium", label: "Medium" },
+          { id: "high", label: "High" },
+        ],
+        vibration: [
+          { id: "low", label: "Low" },
+          { id: "medium", label: "Moderate" },
+          { id: "high", label: "Severe" },
+        ],
+        impact: [
+          { id: "rare", label: "Rare" },
+          { id: "periodic", label: "Periodic" },
+          { id: "frequent", label: "Frequent" },
+        ],
+        tempSwings: [
+          { id: "stable", label: "Stable band" },
+          { id: "moderate", label: "Moderate swings" },
+          { id: "wide", label: "Wide swings" },
+        ],
+        biofouling: [
+          { id: "low", label: "Low" },
+          { id: "medium", label: "Medium" },
+          { id: "high", label: "High" },
+        ],
+      };
+
+      const {
+        CategoryScale,
+        Chart,
+        LinearScale,
+        LineController,
+        LineElement,
+        PointElement,
+        PieController,
+        ScatterController,
+        registry,
+        BarController,
+        BarElement,
+        DoughnutController,
+        ArcElement,
+        Title,
+        Tooltip,
+        Legend,
+      } = window.Chart;
+
+      Chart.register(
+        CategoryScale,
+        LinearScale,
+        LineController,
+        LineElement,
+        PointElement,
+        PieController,
+        ScatterController,
+        BarController,
+        BarElement,
+        DoughnutController,
+        ArcElement,
+        Title,
+        Tooltip,
+        Legend,
+      );
+
+      window.chartRegistry = registry;
+
+      const state = {
+        selectedComponentId: components[0].id,
+        selectedMaterialId: materials[0].id,
+        placedMaterialIds: [materials[0].id],
+        materialLibraryOpen: false,
+        purpose: components[0].purposeDefault,
+        loadProfile: "mixed",
+        cavitation: "high",
+        vibration: "medium",
+        impact: "periodic",
+        tempSwings: "moderate",
+        biofouling: "medium",
+        temperatureC: 8,
+        salinityPsu: 34.8,
+        depthM: 1800,
+        phValue: 7.88,
+        oxygenMgL: 5.7,
+        turbidityNtu: 18,
+        pollutionIndex: 3,
+      };
+
+      function cToF(value) {return value * 9 / 5 + 32;}
+      function metersToFeet(value) {return value * 3.28084;}
+      function oxygenToMmol(value) {return value / 32 * 1000;}
+      function clamp(value, min, max) {return Math.max(min, Math.min(max, value));}
+
+      function getSelectedComponent() {
+        return components.find((component) => component.id === state.selectedComponentId) || components[0];
+      }
+
+      function getMissionFactors() {
+        const component = getSelectedComponent();
+        const componentModifiers = component.componentModifiers || {};
+        const cavitationFactor = { low: 0.35, medium: 0.8, high: 1.25 }[state.cavitation];
+        const vibrationFactor = { low: 0.25, medium: 0.65, high: 1.05 }[state.vibration];
+        const impactFactor = { rare: 0.2, periodic: 0.6, frequent: 1.0 }[state.impact];
+        const tempSwingFactor = { stable: 0.2, moderate: 0.55, wide: 1.0 }[state.tempSwings];
+        const loadFactor = { steady: 0.35, mixed: 0.7, cyclic: 1.1 }[state.loadProfile];
+        const biofoulingFactor = { low: 0.35, medium: 0.75, high: 1.15 }[state.biofouling];
+        const purposeFactor = {
+          propulsion: 1.15,
+          foundation_support: 0.85,
+          bridge_support: 0.95,
+          hull_repair: 0.8,
+          lightweight_vessel: 1.0,
+          equipment_support: 0.75,
+        }[state.purpose] || 1;
+
+        return {
+          component,
+          componentModifiers,
+          cavitationFactor,
+          vibrationFactor,
+          impactFactor,
+          tempSwingFactor,
+          loadFactor,
+          biofoulingFactor,
+          purposeFactor,
+          movingPartFactor: componentModifiers.isMovingPart ? 1.15 : 0.8,
+          flowFactor: componentModifiers.flowExposure || 1,
+          componentBiofoulingFactor: componentModifiers.biofoulingSensitivity || 1,
+        };
+      }
+
+      function calculateBaseCorrosionRisk() {
+        const mission = getMissionFactors();
+        let riskScore = 0;
+        riskScore += Math.max(0, (7.8 - state.phValue) * 35);
+        riskScore += Math.max(0, (state.salinityPsu - 34) * 25);
+        riskScore += Math.max(0, state.pollutionIndex / 10 * 20);
+        riskScore += Math.max(0, (state.temperatureC - 5) * 1.5);
+        riskScore += Math.max(0, state.turbidityNtu / 100 * 12);
+        riskScore += Math.max(0, state.depthM / 5500 * 5);
+        riskScore += mission.biofoulingFactor * mission.componentBiofoulingFactor * 10;
+        riskScore += mission.cavitationFactor * mission.flowFactor * 6;
+        riskScore += mission.loadFactor * 4;
+        riskScore += mission.impactFactor * 3;
+        return clamp(Math.round(riskScore), 0, 100);
+      }
+
+
+      function calculateBaseWaamSuitability() {
+        const mission = getMissionFactors();
+        let suitability = 100;
+        suitability -= Math.abs(state.depthM - 1500) / 5500 * 40;
+        if (state.temperatureC < 0 || state.temperatureC > 25) {
+          suitability -= Math.max(0, 15 - state.temperatureC) * 2;
+        }
+        suitability -= Math.max(0, Math.abs(state.salinityPsu - 34.8) / 6 * 25);
+        suitability -= Math.max(0, state.pollutionIndex / 10 * 15);
+        suitability -= Math.max(0, state.turbidityNtu / 100 * 12);
+        if (state.phValue < 7.6 || state.phValue > 8.2) suitability -= 10;
+        suitability -= mission.cavitationFactor * 7;
+        suitability -= mission.vibrationFactor * 6;
+        suitability -= mission.impactFactor * 5;
+        suitability -= mission.tempSwingFactor * 8;
+        suitability -= mission.loadFactor * 7;
+        suitability -= mission.biofoulingFactor * mission.componentBiofoulingFactor * 5;
+        suitability -= mission.movingPartFactor * 4;
+        suitability += mission.purposeFactor * 4;
+        return clamp(Math.round(suitability), 0, 100);
+      }
+
+      function scoreMaterial(material) {
+        const mission = getMissionFactors();
+        const mods = material.corrosionModifiers || {};
+        const corrosionRisk =
+          calculateBaseCorrosionRisk() *
+          (
+            ((mods.pH || 1) * Math.max(0, (7.8 - state.phValue) * 0.08)) +
+            ((mods.salinity || 1) * Math.max(0, (state.salinityPsu - 34) * 0.05)) +
+            ((mods.pollution || 1) * (state.pollutionIndex / 20)) +
+            ((mods.temperature || 1) * Math.max(0, (state.temperatureC - 5) * 0.01)) +
+            ((mods.turbidity || 1) * (state.turbidityNtu / 250)) +
+            ((mods.biofouling || 1) * mission.biofoulingFactor * 0.16 * mission.componentBiofoulingFactor) +
+            ((mods.flowVelocity || 1) * mission.flowFactor * mission.cavitationFactor * 0.12) +
+            ((mods.movingPart || 1) * mission.movingPartFactor * 0.08)
+          );
+
+        let suitabilityScore = material.baseScore;
+
+        if (state.purpose === "propulsion") {
+          if (material.id === "nickel_aluminum_bronze") suitabilityScore += 12;
+          if (material.id === "al_sc_5183") suitabilityScore -= 8;
+        }
+        if (state.purpose === "foundation_support" || state.purpose === "bridge_support") {
+          if (material.id === "duplex_stainless") suitabilityScore += 10;
+          if (material.id === "inconel_625") suitabilityScore += 4;
+          if (material.id === "al_sc_5183") suitabilityScore -= 9;
+        }
+        if (state.purpose === "hull_repair" || state.purpose === "lightweight_vessel") {
+          if (material.id === "al_sc_5183") suitabilityScore += 10;
+          if (material.id === "inconel_625") suitabilityScore -= 4;
+        }
+        if (state.loadProfile === "cyclic") {
+          if (material.id === "duplex_stainless" || material.id === "inconel_625") suitabilityScore += 8;
+          if (material.id === "al_sc_5183") suitabilityScore -= 5;
+        }
+        if (state.cavitation === "high") {
+          if (material.id === "nickel_aluminum_bronze") suitabilityScore += 10;
+          if (material.id === "al_sc_5183") suitabilityScore -= 7;
+        }
+        if (state.vibration === "high") {
+          if (material.id === "duplex_stainless") suitabilityScore += 5;
+          if (material.id === "nickel_aluminum_bronze") suitabilityScore += 2;
+        }
+        if (state.tempSwings === "wide") {
+          if (material.id === "inconel_625") suitabilityScore += 10;
+          if (material.id === "al_sc_5183") suitabilityScore -= 4;
+        }
+        if (state.biofouling === "high") {
+          if (material.id === "duplex_stainless" || material.id === "inconel_625") suitabilityScore += 5;
+          if (material.id === "al_sc_5183") suitabilityScore -= 5;
+        }
+        if (state.salinityPsu > 36) {
+          if (material.id === "duplex_stainless" || material.id === "nickel_aluminum_bronze") suitabilityScore += 5;
+          if (material.id === "al_sc_5183") suitabilityScore -= 6;
+        }
+        if (state.phValue < 7.7) {
+          if (material.id === "inconel_625") suitabilityScore += 5;
+          if (material.id === "al_sc_5183") suitabilityScore -= 6;
+        }
+
+        suitabilityScore += calculateBaseWaamSuitability() * 0.18;
+        suitabilityScore -= corrosionRisk * 0.22;
+
+        const totalScore = clamp(Math.round(suitabilityScore), 0, 100);
+        return {
+          material,
+          corrosionRisk: clamp(Math.round(corrosionRisk), 0, 100),
+          waamSuitability: clamp(Math.round(calculateBaseWaamSuitability() - ((mods.movingPart || 1) - 1) * 8 - ((mods.flowVelocity || 1) - 1) * 6), 0, 100),
+          totalScore,
+        };
+      }
+
+      function rankMaterials() {
+        return materials
+          .map((material) => scoreMaterial(material))
+          .sort((a, b) => b.totalScore - a.totalScore);
+      }
+
+      function populateSelect(select, options, selected) {
+        if (!select) return;
+        select.innerHTML = "";
+        options.forEach((option) => {
+          const element = document.createElement("option");
+          element.value = option.id;
+          element.textContent = option.label;
+          element.selected = option.id === selected;
+          select.appendChild(element);
+        });
+      }
+
+      window.addEventListener("DOMContentLoaded", () => {
+        const els = {
+          addElementButton: document.querySelector("#addElementButton"),
+          materialLibrary: document.querySelector("#materialLibrary"),
+          materialDropzone: document.querySelector("#materialDropzone"),
+          purposeSelect: document.querySelector("#purposeSelect"),
+          loadProfileSelect: document.querySelector("#loadProfileSelect"),
+          cavitationSelect: document.querySelector("#cavitationSelect"),
+          vibrationSelect: document.querySelector("#vibrationSelect"),
+          impactSelect: document.querySelector("#impactSelect"),
+          tempSwingSelect: document.querySelector("#tempSwingSelect"),
+          biofoulingSelect: document.querySelector("#biofoulingSelect"),
+          temperatureC: document.querySelector("#temperatureC"),
+          salinityPsu: document.querySelector("#salinityPsu"),
+          depthM: document.querySelector("#depthM"),
+          phValue: document.querySelector("#phValue"),
+          oxygenMgL: document.querySelector("#oxygenMgL"),
+          turbidityNtu: document.querySelector("#turbidityNtu"),
+          pollutionIndex: document.querySelector("#pollutionIndex"),
+          biofoulingValue: document.querySelector("#biofoulingValue"),
+          temperatureCValue: document.querySelector("#temperatureCValue"),
+          temperatureFValue: document.querySelector("#temperatureFValue"),
+          salinityPsuValue: document.querySelector("#salinityPsuValue"),
+          salinityPptValue: document.querySelector("#salinityPptValue"),
+          depthMValue: document.querySelector("#depthMValue"),
+          depthFtValue: document.querySelector("#depthFtValue"),
+          phDisplay: document.querySelector("#phDisplay"),
+          oxygenValue: document.querySelector("#oxygenValue"),
+          oxygenMmolValue: document.querySelector("#oxygenMmolValue"),
+          turbidityValue: document.querySelector("#turbidityValue"),
+          pollutionValue: document.querySelector("#pollutionValue"),
+          corrosionRiskValue: document.querySelector("#corrosionRiskValue"),
+          corrosionRiskDonut: document.querySelector("#corrosionRiskDonut"),
+          waamSuitabilityValue: document.querySelector("#waamSuitabilityValue"),
+          waamSuitabilityDonut: document.querySelector("#waamSuitabilityDonut"),
+          recommendationTitle: document.querySelector("#recommendationTitle"),
+          recommendationText: document.querySelector("#recommendationText"),
+          recommendationMeta: document.querySelector("#recommendationMeta"),
+          viewer3d: document.querySelector("#viewer3d"),
+        };
+
+        function syncDisplays() {
+          if (els.temperatureCValue) els.temperatureCValue.textContent = `${state.temperatureC.toFixed(1)} C`;
+          if (els.temperatureFValue) els.temperatureFValue.textContent = `${cToF(state.temperatureC).toFixed(1)} F`;
+          if (els.salinityPsuValue) els.salinityPsuValue.textContent = `${state.salinityPsu.toFixed(1)} PSU`;
+          if (els.salinityPptValue) els.salinityPptValue.textContent = `${state.salinityPsu.toFixed(1)} ppt`;
+          if (els.depthMValue) els.depthMValue.textContent = `${Math.round(state.depthM)} m`;
+          if (els.depthFtValue) els.depthFtValue.textContent = `${Math.round(metersToFeet(state.depthM))} ft`;
+          if (els.phDisplay) els.phDisplay.textContent = `pH ${state.phValue.toFixed(2)}`;
+          if (els.oxygenValue) els.oxygenValue.textContent = `${state.oxygenMgL.toFixed(1)} mg/L`;
+          if (els.oxygenMmolValue) els.oxygenMmolValue.textContent = `${oxygenToMmol(state.oxygenMgL).toFixed(0)} mmol/m3`;
+          if (els.turbidityValue) els.turbidityValue.textContent = `${Math.round(state.turbidityNtu)} NTU`;
+          if (els.pollutionValue) els.pollutionValue.textContent = `${state.pollutionIndex}/10`;
+          if (els.biofoulingValue) els.biofoulingValue.textContent = state.biofouling;
+        }
+
+        function syncIndicators() {
+          const circumference = 251.2;
+          const ranked = rankMaterials();
+          const best = ranked[0];
+          const corrosionRisk = best ? best.corrosionRisk : calculateBaseCorrosionRisk();
+          const waamSuitability = best ? best.waamSuitability : calculateBaseWaamSuitability();
+
+          if (els.corrosionRiskValue) els.corrosionRiskValue.textContent = corrosionRisk;
+          if (els.waamSuitabilityValue) els.waamSuitabilityValue.textContent = waamSuitability;
+
+          if (els.corrosionRiskDonut) {
+            els.corrosionRiskDonut.style.strokeDashoffset = circumference - corrosionRisk / 100 * circumference;
+            els.corrosionRiskDonut.setAttribute(
+              "class",
+              `donut-fill ${corrosionRisk > 70 ? "risk" : corrosionRisk > 40 ? "watch" : "good"}`,
+            );
+          }
+
+          if (els.waamSuitabilityDonut) {
+            els.waamSuitabilityDonut.style.strokeDashoffset = circumference - waamSuitability / 100 * circumference;
+            els.waamSuitabilityDonut.setAttribute(
+              "class",
+              `donut-fill ${waamSuitability > 70 ? "good" : waamSuitability > 40 ? "watch" : "risk"}`,
+            );
+          }
+        }
+
+        function syncRecommendation() {
+          const ranked = rankMaterials();
+          const best = ranked[0];
+          const second = ranked[1];
+          const component = getSelectedComponent();
+          if (!best) return;
+
+          if (els.recommendationTitle) {
+            els.recommendationTitle.textContent = best.material.name;
+          }
+
+          if (els.recommendationText) {
+            els.recommendationText.textContent =
+              `${best.material.name} is the recommended WAAM alloy for this ${component.name.toLowerCase()} because its strengths in ${best.material.strengths.slice(0, 2)}`;
+          }
+
+          if (els.recommendationMeta) {
+            const runnerUp = second ? `${second.material.name} is the runner-up at ${second.totalScore}.` : "";
+            els.recommendationMeta.textContent =
+              `Score ${best.totalScore}. Corrosion risk ${best.corrosionRisk}%. WAAM suitability ${best.waamSuitability}%. ${runnerUp}`;
+          }
+        }
+
+        function syncSelectors() {
+          populateSelect(els.purposeSelect, purposeOptions, state.purpose);
+          populateSelect(els.loadProfileSelect, optionSets.loadProfiles, state.loadProfile);
+          populateSelect(els.cavitationSelect, optionSets.cavitation, state.cavitation);
+          populateSelect(els.vibrationSelect, optionSets.vibration, state.vibration);
+          populateSelect(els.impactSelect, optionSets.impact, state.impact);
+          populateSelect(els.tempSwingSelect, optionSets.tempSwings, state.tempSwings);
+          populateSelect(els.biofoulingSelect, optionSets.biofouling, state.biofouling);
+
+          if (els.temperatureC) els.temperatureC.value = state.temperatureC;
+          if (els.salinityPsu) els.salinityPsu.value = state.salinityPsu;
+          if (els.depthM) els.depthM.value = state.depthM;
+          if (els.phValue) els.phValue.value = state.phValue;
+          if (els.oxygenMgL) els.oxygenMgL.value = state.oxygenMgL;
+          if (els.turbidityNtu) els.turbidityNtu.value = state.turbidityNtu;
+          if (els.pollutionIndex) els.pollutionIndex.value = state.pollutionIndex;
+        }
+
+        function bindSlider(id, stateKey) {
+          const input = els[id];
+          if (!input) return;
+          input.addEventListener("input", (event) => {
+            state[stateKey] = Number(event.target.value);
+            syncDisplays();
+            syncIndicators();
+            syncRecommendation();
+          });
+        }
+
+document.querySelectorAll(".map-panel iframe").forEach((f, i) => {
+  f.hidden = i !== 0;
+});
+
+let currentIndex = 0;
+
+if (els.addElementButton) {
+  els.addElementButton.addEventListener("click", () => {
+    const iframes = document.querySelectorAll(".map-panel iframe");
+
+    iframes.forEach(f => f.hidden = true);
+
+    currentIndex = (currentIndex + 1) % iframes.length;
+
+    iframes[currentIndex].hidden = false;
+  });
+}
+
+
+
+        if (els.materialDropzone) {
+          els.materialDropzone.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            els.materialDropzone.classList.add("dragover");
+          });
+
+          els.materialDropzone.addEventListener("dragleave", () => {
+            els.materialDropzone.classList.remove("dragover");
+          });
+
+          els.materialDropzone.addEventListener("drop", (event) => {
+            event.preventDefault();
+            els.materialDropzone.classList.remove("dragover");
+            const files = event.dataTransfer ? event.dataTransfer.files : [];
+            for (let index = 0; index < files.length; index += 1) {
+              alert(`File ${index + 1}: ${files[index].name}`);
+            }
+          });
+        }
+
+        if (els.purposeSelect) {
+          els.purposeSelect.addEventListener("change", (event) => {
+            state.purpose = event.target.value;
+            syncIndicators();
+            syncRecommendation();
+          });
+        }
+        if (els.loadProfileSelect) {
+          els.loadProfileSelect.addEventListener("change", (event) => {
+            state.loadProfile = event.target.value;
+            syncIndicators();
+            syncRecommendation();
+          });
+        }
+        if (els.cavitationSelect) {
+          els.cavitationSelect.addEventListener("change", (event) => {
+            state.cavitation = event.target.value;
+            syncIndicators();
+            syncRecommendation();
+          });
+        }
+        if (els.vibrationSelect) {
+          els.vibrationSelect.addEventListener("change", (event) => {
+            state.vibration = event.target.value;
+            syncIndicators();
+            syncRecommendation();
+          });
+        }
+        if (els.impactSelect) {
+          els.impactSelect.addEventListener("change", (event) => {
+            state.impact = event.target.value;
+            syncIndicators();
+            syncRecommendation();
+          });
+        }
+        if (els.tempSwingSelect) {
+          els.tempSwingSelect.addEventListener("change", (event) => {
+            state.tempSwings = event.target.value;
+            syncIndicators();
+            syncRecommendation();
+          });
+        }
+        if (els.biofoulingSelect) {
+          els.biofoulingSelect.addEventListener("change", (event) => {
+            state.biofouling = event.target.value;
+            syncDisplays();
+            syncIndicators();
+            syncRecommendation();
+          });
+        }
+
+        bindSlider("temperatureC", "temperatureC");
+        bindSlider("salinityPsu", "salinityPsu");
+        bindSlider("depthM", "depthM");
+        bindSlider("phValue", "phValue");
+        bindSlider("oxygenMgL", "oxygenMgL");
+        bindSlider("turbidityNtu", "turbidityNtu");
+        bindSlider("pollutionIndex", "pollutionIndex");
+
+        syncSelectors();
+        syncDisplays();
+        syncIndicators();
+        syncRecommendation();
+
+        if (els.viewer3d && window.THREE && THREE.OBJLoader && THREE.OrbitControls) {
+          const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          renderer.outputColorSpace = THREE.SRGBColorSpace;
+          renderer.setSize(els.viewer3d.clientWidth, els.viewer3d.clientHeight, false);
+          els.viewer3d.appendChild(renderer.domElement);
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <main class="workspace">
+        <section class="panel model-stage-panel">
+          <div class="model-stage-head">
+          
+            <!-- <div class="hero-strip compact-hero stage-hero">
+              <div class="hero-copy">
+                <p class="eyebrow">Interactive analysis scaffold</p>
+                <h2 id="selectedComponentName">Propeller</h2>
+                <p id="selectedComponentSummary" class="hero-summary"></p>
+              </div>
+              <div class="hero-metrics">
+                <div class="metric">
+                  <span class="metric-label">Suitability</span>
+                  <strong id="scoreValue">0</strong>
+                </div>
+                <div class="metric">
+                  <span class="metric-label">Best fit</span>
+                  <strong id="fitValue">-</strong>
+                </div>
+                <div class="metric">
+                  <span class="metric-label">Risk signal</span>
+                  <strong id="riskValue">-</strong>
+                </div>
+              </div>
+            </div> -->
+         
+          </div>
+          <!-- <div id="obj_space" class="viewer-card compact-viewer centered-viewer-card">
+            <div class="viewer-toolbar">
+              <div>
+                <p class="toolbar-label">Embedded OBJ preview</p>
+                <h3 id="viewerTitle"></h3>
+              </div>
+              <div class="legend">
+                <span><i class="dot dot-good"></i> favorable</span>
+                <span><i class="dot dot-mid"></i> watch</span>
+                <span><i class="dot dot-risk"></i> stress point</span>
+              </div>
+            </div>
+            <div id="viewer3d" class="viewer-3d viewer-3d-centered"></div>
+            <section id="materialDropzone" class="material-dropzone" aria-label="Material drop zone">
+              <div class="dropzone-copy">
+                <p class="toolbar-label">Draggable zone</p>
+                <h4>Drop materials here</h4>
+                <p>Drag items from the add menu into this zone to build a working material set.</p>
+              </div>
+              <div id="placedMaterials" class="placed-materials"></div>
+            </section>
+          </div> -->
+
+          <!-- <section id="materialLibrary" class="material-library" hidden>
+            <div class="section-head">
+              <h2>Material library</h2>
+              <span class="section-kicker">Drag into the zone or click to focus</span>
+            </div>
+            <div id="materialGrid" class="material-slider"></div>
+          </section>
+        </section> -->
+
+        <section class="focus-grid">
+          <section class="panel ocean-panel">
+            <div class="section-head">
+              <h2>Ocean conditions</h2>
+              <span class="section-kicker">Converted live values</span>
+            </div>
+            <div class="ocean-indicators">
+              <div class="indicator-donut">
+                <svg viewBox="0 0 100 100" class="donut-chart">
+                  <circle cx="50" cy="50" r="40" class="donut-bg"></circle>
+                  <circle cx="50" cy="50" r="40" class="donut-fill" id="corrosionRiskDonut"></circle>
+                </svg>
+                <div class="indicator-label">
+                  <span class="indicator-value" id="corrosionRiskValue">0</span>
+                  <span class="indicator-unit">%</span>
+                  <p class="indicator-title">Corrosion Risk</p>
+                </div>
+              </div>
+              <div class="indicator-donut">
+                <svg viewBox="0 0 100 100" class="donut-chart">
+                  <circle cx="50" cy="50" r="40" class="donut-bg"></circle>
+                  <circle cx="50" cy="50" r="40" class="donut-fill" id="waamSuitabilityDonut"></circle>
+                </svg>
+                <div class="indicator-label">
+                  <span class="indicator-value" id="waamSuitabilityValue">0</span>
+                  <span class="indicator-unit">%</span>
+                  <p class="indicator-title">WAAM Suitability</p>
+                </div>
+              </div>
+            </div>
+            <div class="slider-stack">
+              <label>
+                Water temperature
+                <input id="temperatureC" type="range" min="-2" max="35" step="0.5" />
+                <div class="value-row">
+                  <strong id="temperatureCValue"></strong>
+                  <span id="temperatureFValue"></span>
+                </div>
+              </label>
+              <label>
+                Salinity
+                <input id="salinityPsu" type="range" min="20" max="40" step="0.1" />
+                <div class="value-row">
+                  <strong id="salinityPsuValue"></strong>
+                  <span id="salinityPptValue"></span>
+                </div>
+              </label>
+              <label>
+                Depth
+                <input id="depthM" type="range" min="0" max="5500" step="50" />
+                <div class="value-row">
+                  <strong id="depthMValue"></strong>
+                  <span id="depthFtValue"></span>
+                </div>
+              </label>
+              <label>
+                pH
+                <input id="phValue" type="range" min="7.4" max="8.4" step="0.01" />
+                <div class="value-row">
+                  <strong id="phDisplay"></strong>
+                  <span>acidity marker</span>
+                </div>
+              </label>
+              <label>
+                Dissolved oxygen
+                <input id="oxygenMgL" type="range" min="1" max="10" step="0.1" />
+                <div class="value-row">
+                  <strong id="oxygenValue"></strong>
+                  <span id="oxygenMmolValue"></span>
+                </div>
+              </label>
+              <label>
+                Turbidity
+                <input id="turbidityNtu" type="range" min="0" max="100" step="1" />
+                <div class="value-row">
+                  <strong id="turbidityValue"></strong>
+                  <span>particle load</span>
+                </div>
+              </label>
+              <label>
+                Pollution index
+                <input id="pollutionIndex" type="range" min="0" max="10" step="1" />
+                <div class="value-row">
+                  <strong id="pollutionValue"></strong>
+                  <span>0 clean to 10 harsh</span>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <section class="panel map-panel">
+            <div class="section-head">
+              <h2>ArcGIS ocean map</h2>
+                <button id="addElementButton" class="add-element-button" type="button" aria-expanded="false" aria-controls="materialLibrary" >
+             Next
+              
+            </button>
+            </div>
+            <iframe width="700" height="600" allow="local-network-access; geolocation" title="temperature_WOA23" src="https://ccv23.maps.arcgis.com/apps/mapviewer/index.html?configurableview=true&webmap=c24389d080024ea1bcbdcac06664eada&theme=light&heading=true&scroll=false&center=-3.683495111555269,26.961912221286475&scale=295828763.795777" ></iframe>
+            <iframe width="700" height="600" allow="local-network-access; geolocation" title="salinity_WOA23" src="https://ccv23.maps.arcgis.com/apps/mapviewer/index.html?configurableview=true&webmap=4dfc52038d4b4f07b6d189dac013ce0b&theme=light&heading=true&scroll=false&center=-3.7361844256221195,35.285664575358155&scale=295828763.7957775" ></iframe>
+            <iframe width="700" height="600" allow="local-network-access; geolocation" title="TimeMapHurricane" src="https://ccv23.maps.arcgis.com/apps/mapviewer/index.html?configurableview=true&webmap=3eab8c491afd4c8f884eae4eb98c8825&theme=light&share=true&scroll=false&center=-4.288588496632165,28.73232034520545&scale=147914381.897889" ></iframe>
+          </section>
+        </section>
+      </main>
+
+      <aside class="side-rail">
+        <!-- <div class="brand-block">
+          <h1>WAAM & Oceanogrpahic Statistics</h1>
+        </div> -->
+         <section class="panel recommendation-panel">
+          <div class="section-head">
+            <h2>Recommended Alloy</h2>
+            <span class="section-kicker">Mission-weighted result</span>
+          </div>
+          <div class="recommendation-copy">
+            <strong id="recommendationTitle">-</strong>
+            <p id="recommendationText"></p>
+            <p id="recommendationMeta" class="recommendation-meta"></p>
+          </div>
+        </section>
+        <details class="panel" open>
+          <summary>Mission profile</summary>
+          <div class="form-grid">
+            <label>
+              Component role
+              <select id="purposeSelect"></select>
+            </label>
+            <label>
+              Duty profile
+              <select id="loadProfileSelect"></select>
+            </label>
+            <label>
+              Cavitation exposure
+              <select id="cavitationSelect"></select>
+            </label>
+            <label>
+              Vibration severity
+              <select id="vibrationSelect"></select>
+            </label>
+            <label>
+              Impact events
+              <select id="impactSelect"></select>
+            </label>
+            <label>
+              Temperature cycling
+              <select id="tempSwingSelect"></select>
+            </label>
+            <label>
+              Biofouling pressure
+              <select id="biofoulingSelect"></select>
+              <div class="value-row">
+                <strong id="biofoulingValue"></strong>
+                <span>marine growth load</span>
+              </div>
+            </label>
+          </div>
+        </details>
+       
+      </aside>
+    </div>
+  </body>
+</html>

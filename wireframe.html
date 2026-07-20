@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WAAM Simulator Wireframe</title>
+    <style>
+      :root {
+        --bg: #f4f4f4;
+        --panel: #ffffff;
+        --line: #2b2b2b;
+        --soft: #d9d9d9;
+        --text: #111111;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Arial, sans-serif;
+      }
+
+      .page {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 16px;
+        display: grid;
+        gap: 16px;
+      }
+
+      .frame {
+        background: var(--panel);
+        border: 2px solid var(--line);
+        border-radius: 6px;
+      }
+
+      .header {
+        min-height: 84px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .title-block {
+        display: grid;
+        gap: 8px;
+      }
+
+      .line {
+        height: 12px;
+        background: var(--soft);
+        border: 1px solid var(--line);
+      }
+
+      .line.title {
+        width: 240px;
+        height: 20px;
+      }
+
+      .line.short {
+        width: 140px;
+      }
+
+      .line.medium {
+        width: 220px;
+      }
+
+      .header-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .chip {
+        width: 110px;
+        height: 34px;
+        border: 2px solid var(--line);
+        background: var(--soft);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr) 300px;
+        gap: 16px;
+      }
+
+      .sidebar,
+      .canvas,
+      .inspector,
+      .bottom {
+        min-height: 620px;
+        padding: 14px;
+      }
+
+      .section-title {
+        width: 160px;
+        height: 16px;
+        background: var(--soft);
+        border: 1px solid var(--line);
+        margin-bottom: 12px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .card {
+        border: 2px solid var(--line);
+        background: #fafafa;
+        border-radius: 6px;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .thumb {
+        height: 88px;
+        border: 2px dashed var(--line);
+        background: var(--soft);
+      }
+
+      .thumb.tall {
+        height: 130px;
+      }
+
+      .canvas {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 14px;
+      }
+
+      .toolbar {
+        min-height: 54px;
+        padding: 8px;
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .tool {
+        width: 78px;
+        height: 34px;
+        border: 2px solid var(--line);
+        background: var(--soft);
+      }
+
+      .viewer {
+        border: 2px dashed var(--line);
+        border-radius: 6px;
+        background:
+          linear-gradient(180deg, #ffffff, #efefef);
+        display: grid;
+        place-items: center;
+        min-height: 420px;
+      }
+
+      .viewer-box {
+        width: 68%;
+        height: 68%;
+        border: 3px solid var(--line);
+        background: var(--soft);
+      }
+
+      .status-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .status-card {
+        min-height: 84px;
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        background: #fafafa;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .field {
+        min-height: 62px;
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        background: #fafafa;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .slider {
+        height: 14px;
+        border: 1px solid var(--line);
+        background: var(--soft);
+      }
+
+      .bottom {
+        min-height: 240px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .note-box {
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        background: #fafafa;
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .legend-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+      }
+
+      @media (max-width: 1100px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .bottom {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="header frame">
+        <div class="title-block">
+          <div class="line title"></div>
+          <div class="line medium"></div>
+        </div>
+        <div class="header-actions">
+          <div class="chip"></div>
+          <div class="chip"></div>
+        </div>
+      </section>
+
+      <section class="layout">
+        <aside class="sidebar frame">
+          <div class="section-title"></div>
+          <div class="stack">
+            <div class="card">
+              <div class="thumb"></div>
+              <div class="line medium"></div>
+              <div class="line short"></div>
+            </div>
+            <div class="card">
+              <div class="thumb"></div>
+              <div class="line medium"></div>
+              <div class="line short"></div>
+            </div>
+            <div class="card">
+              <div class="thumb"></div>
+              <div class="line medium"></div>
+              <div class="line short"></div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="canvas frame">
+          <div class="toolbar">
+            <div class="tool"></div>
+            <div class="tool"></div>
+            <div class="tool"></div>
+            <div class="tool"></div>
+          </div>
+          <div class="viewer">
+            <div class="viewer-box"></div>
+          </div>
+          <div class="status-row">
+            <div class="status-card">
+              <div class="line short"></div>
+              <div class="line medium"></div>
+            </div>
+            <div class="status-card">
+              <div class="line short"></div>
+              <div class="line medium"></div>
+            </div>
+            <div class="status-card">
+              <div class="line short"></div>
+              <div class="line medium"></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="inspector frame">
+          <div class="section-title"></div>
+          <div class="stack">
+            <div class="field">
+              <div class="line medium"></div>
+              <div class="slider"></div>
+            </div>
+            <div class="field">
+              <div class="line medium"></div>
+              <div class="slider"></div>
+            </div>
+            <div class="field">
+              <div class="line medium"></div>
+              <div class="slider"></div>
+            </div>
+            <div class="field">
+              <div class="line medium"></div>
+              <div class="slider"></div>
+            </div>
+            <div class="field">
+              <div class="line medium"></div>
+              <div class="thumb tall"></div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="bottom frame">
+        <div class="note-box">
+          <div class="section-title"></div>
+          <div class="line medium"></div>
+          <div class="line"></div>
+          <div class="line"></div>
+          <div class="line medium"></div>
+        </div>
+        <div class="note-box">
+          <div class="section-title"></div>
+          <div class="legend-row">
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
