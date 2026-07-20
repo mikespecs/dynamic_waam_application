@@ -1,0 +1,19 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="steelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a4a4a;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#2a2a2a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a1a1a;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="#f5f7f9"/>
+  <rect x="60" y="50" width="80" height="70" fill="url(#steelGrad)" opacity="0.9"/>
+  <rect x="60" y="50" width="80" height="70" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+  <line x1="70" y1="60" x2="130" y2="60" stroke="#666" stroke-width="1" opacity="0.5"/>
+  <line x1="70" y1="75" x2="130" y2="75" stroke="#666" stroke-width="1" opacity="0.5"/>
+  <line x1="70" y1="90" x2="130" y2="90" stroke="#666" stroke-width="1" opacity="0.5"/>
+  <line x1="70" y1="105" x2="130" y2="105" stroke="#666" stroke-width="1" opacity="0.5"/>
+  <circle cx="85" cy="65" r="4" fill="#fff" opacity="0.4"/>
+  <text x="100" y="160" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#10283a">Duplex Steel</text>
+  <rect x="50" y="125" width="100" height="3" fill="#1f8b71" opacity="0.6"/>
+</svg>
