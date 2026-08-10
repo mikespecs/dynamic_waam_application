@@ -5,8 +5,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "run": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+     "start": "npm install && node waam_app.js"
   },
   "keywords": [],
   "author": "",
