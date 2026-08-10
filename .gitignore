@@ -3,5 +3,4 @@ node_modules
 external_datasource/firebase_test.js
 external_datasource/server/firebase_init.js
 external_datasource/firebase_db_proc.js
-models/base/ferry_hull/
-models/base/intake_grate/
+models/*

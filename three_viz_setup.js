@@ -1,6 +1,7 @@
 import * as THREE from '/node_modules/three/build/three.module.js';
 
-const OBJ_PATH = './models/base/propeller/propeller_vert.obj';
+
+const OBJ_PATH = "https://www.dropbox.com/scl/fi/xctklne8w7ci3qkmhdzj1/Meshy_AI_Golden_Propeller_0810004609_texture.obj?rlkey=g9yv9idguza6euc2m4zijub36&st=i0epvubx&dl=0";
 const SLIDER_RANGE = 100;
 
 const scene = new THREE.Scene();
@@ -162,12 +163,90 @@ function init() {
     updateBuildProgress(value);
   });
 
-  fetch(OBJ_PATH)
-    .then((response) => {
-      if (!response.ok) throw new Error(`Failed to load ${OBJ_PATH}: ${response.statusText}`);
-      return response.text();
-    })
-    .then((text) => {
+  // Normalize common shared-link hosts to raw downloadable forms
+  function normalizeDownloadUrl(urlStr) {
+    try {
+      const url = new URL(urlStr);
+      const host = url.hostname.toLowerCase();
+
+      // Dropbox share links -> force raw download
+      if (host.includes('dropbox.com')) {
+        // prefer dl=1 which instructs Dropbox to serve raw file
+        url.searchParams.set('dl', '1');
+        return url.toString();
+      }
+
+      // GitHub blob links -> convert to raw.githubusercontent.com
+      if (host.includes('github.com') && url.pathname.includes('/blob/')) {
+        return urlStr.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+      }
+
+      return urlStr;
+    } catch (e) {
+      return urlStr;
+    }
+  }
+
+  async function fetchObjText(src) {
+    const tried = new Set();
+
+    async function attempt(u) {
+      if (tried.has(u)) return null;
+      tried.add(u);
+      try {
+        const res = await fetch(u, { mode: 'cors', redirect: 'follow' });
+        if (!res.ok) {
+          console.warn(`Fetch ${u} returned ${res.status}`);
+          return null;
+        }
+
+        const contentType = res.headers.get('content-type') || '';
+        const text = await res.text();
+
+        // If we get an HTML page back, it's probably a preview page — treat as failure
+        if (contentType.includes('text/html') || text.trim().startsWith('<!DOCTYPE html') || text.includes('<html')) {
+          console.warn(`Fetched HTML preview from ${u}`);
+          return null;
+        }
+
+        return text;
+      } catch (err) {
+        console.warn(`Fetch failed for ${u}:`, err);
+        return null;
+      }
+    }
+
+    // Try normalized URL first
+    const first = normalizeDownloadUrl(src);
+    let txt = await attempt(first);
+    if (txt) return txt;
+
+    // If original differs, try original
+    if (first !== src) {
+      txt = await attempt(src);
+      if (txt) return txt;
+    }
+
+    // Dropbox alternate raw host
+    try {
+      const url = new URL(src);
+      if (url.hostname.includes('dropbox.com')) {
+        const alt = src.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('?dl=0', '');
+        txt = await attempt(alt);
+        if (txt) return txt;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return null;
+  }
+
+  (async () => {
+    try {
+      const text = await fetchObjText(OBJ_PATH);
+      if (!text) throw new Error(`Unable to download raw OBJ from ${OBJ_PATH}`);
+
       const { vertices, indices } = parseObjGeometry(text);
       if (vertices.length === 0 || indices.length === 0) {
         throw new Error('No vertices or faces found in OBJ file');
@@ -175,10 +254,10 @@ function init() {
       setupGeometry(vertices, indices);
       updateBuildProgress(Number(slider.value));
       animate(renderer);
-    })
-    .catch((error) => {
+    } catch (error) {
       console.error('OBJ load/parse error:', error);
-    });
+    }
+  })();
 }
 
 document.addEventListener('DOMContentLoaded', init);
