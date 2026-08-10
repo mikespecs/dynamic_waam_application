@@ -1,14 +1,11 @@
 import { firestore_app_client } from "./firebase_init_client.js";
-import { setDoc, getDoc, doc } from "firebase/firestore";
+import { getDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
-
-function getFirestoreDoc(collectionName, docId) {
-
-    getDoc(doc(firestore_app_client, collectionName, docId)).then((snapshot) => {
-    if (snapshot.exists()) {
-        console.log(snapshot.data());
-    }
-});
+export async function getFirestoreDoc(collectionName, docId) {
+  const snapshot = await getDoc(doc(firestore_app_client, collectionName, docId));
+  if (!snapshot.exists()) {
+    console.warn(`Firestore document not found: ${collectionName}/${docId}`);
+    return null;
+  }
+  return snapshot.data();
 }
-
-export default getFirestoreDoc;

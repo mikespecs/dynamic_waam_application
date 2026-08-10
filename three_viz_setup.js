@@ -1,7 +1,6 @@
 import * as THREE from '/node_modules/three/build/three.module.js';
-import {getFirestoreDoc} from './external_datasource/client/firestore_client_db_proc.js';
 
-const OBJ_PATH = ""; //empty string for now, will be set after fetching from Firestore
+const OBJ_PATH = './models/base/propeller/propeller_vert.obj';
 const SLIDER_RANGE = 100;
 
 const scene = new THREE.Scene();
@@ -20,51 +19,105 @@ const axesHelper = new THREE.AxesHelper(0.5);
 scene.add(axesHelper);
 
 const geometry = new THREE.BufferGeometry();
-const pointsMaterial = new THREE.PointsMaterial({ size: 0.03, color: 0x48d1ff });
+const meshMaterial = new THREE.MeshPhongMaterial({
+  side: THREE.DoubleSide,
+  vertexColors: true,
+  shininess: 80,
+});
+const pointsMaterial = new THREE.PointsMaterial({
+  size: 0.02,
+  vertexColors: true,
+  transparent: true,
+  opacity: 0.75,
+});
+const mesh = new THREE.Mesh(geometry, meshMaterial);
 const pointsMesh = new THREE.Points(geometry, pointsMaterial);
+scene.add(mesh);
 scene.add(pointsMesh);
 
-let vertexCount = 0;
+let totalIndices = 0;
 let totalVertices = 0;
+let positionsArray = null;
 
-//verification example
-function parseObjVertices(objText) {
+function parseObjGeometry(objText) {
   const vertices = [];
-  const lines = objText.split('\n'); // newline escape character
+  const indices = [];
+  const lines = objText.split('\n');
+
   for (const line of lines) {
-    const trimmed = line.trim(); //delete whitespace (START AND THE END ONLY)
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
 
-    if (!trimmed || trimmed.startsWith('#')) 
-		continue; //if whitespace "surrounding" or comment present, skip
-    const parts = trimmed.split(/\s+/); // split by inner whitespace
-
-	//if vertex line (v) + ensuring xyz values present
-    if (parts[0] === 'v' && parts.length >= 4) { 
-      const x = parseFloat(parts[1]); //x
-      const y = parseFloat(parts[2]); //y
-      const z = parseFloat(parts[3]); //z
+    const parts = trimmed.split(/\s+/);
+    if (parts[0] === 'v' && parts.length >= 4) {
+      const x = parseFloat(parts[1]);
+      const y = parseFloat(parts[2]);
+      const z = parseFloat(parts[3]);
       if (!Number.isNaN(x) && !Number.isNaN(y) && !Number.isNaN(z)) {
         vertices.push(x, y, z);
       }
+    } else if (parts[0] === 'f' && parts.length >= 4) {
+      const faceIndices = parts.slice(1).map((token) => {
+        const vertexIndex = token.split('/')[0];
+        return parseInt(vertexIndex, 10) - 1;
+      }).filter((index) => !Number.isNaN(index));
+
+      for (let i = 1; i + 1 < faceIndices.length; i += 1) {
+        indices.push(faceIndices[0], faceIndices[i], faceIndices[i + 1]);
+      }
     }
   }
-  return vertices;
+
+  return { vertices, indices };
 }
 
-function setupGeometry(vertices) {
-  totalVertices = Math.floor(vertices.length / 3); 
-  const positions = new Float32Array(vertices); 
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setDrawRange(0, 0);
+function heatColor(weight) {
+  const color = new THREE.Color();
+  color.setHSL(0.66 - weight * 0.66, 1, 0.5);
+  return color;
+}
+
+function createThermalColors(baseHeat) {
+  const colors = [];
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  for (let i = 1; i < positionsArray.length; i += 3) {
+    minY = Math.min(minY, positionsArray[i]);
+    maxY = Math.max(maxY, positionsArray[i]);
+  }
+  const range = Math.max(maxY - minY, 0.0001);
+
+  for (let i = 0; i < positionsArray.length; i += 3) {
+    const y = positionsArray[i + 1];
+    const normalizedHeight = (y - minY) / range;
+    const weight = THREE.MathUtils.clamp(normalizedHeight * 0.6 + baseHeat * 0.4, 0, 1);
+    const color = heatColor(weight);
+    colors.push(color.r, color.g, color.b);
+  }
+
+  return new Float32Array(colors);
+}
+
+function setupGeometry(vertices, indices) {
+  totalVertices = Math.floor(vertices.length / 3);
+  totalIndices = indices.length;
+  positionsArray = new Float32Array(vertices);
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positionsArray, 3));
+  geometry.setIndex(indices);
+  geometry.setAttribute('color', new THREE.BufferAttribute(createThermalColors(0), 3));
+  geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
-  geometry.attributes.position.needsUpdate = true;
+  geometry.setDrawRange(0, 0);
 }
 
 function updateBuildProgress(value) {
-  if (totalVertices === 0) return;
-  const drawCount = Math.floor((value/SLIDER_RANGE)* totalVertices); // Calculate the number of vertices to draw based on slider value
+  if (totalIndices === 0) return;
+  const drawCount = Math.floor((value / SLIDER_RANGE) * totalIndices);
   geometry.setDrawRange(0, drawCount);
-  geometry.attributes.position.needsUpdate = true;
+  geometry.setAttribute('color', new THREE.BufferAttribute(createThermalColors(value / SLIDER_RANGE), 3));
+  geometry.attributes.color.needsUpdate = true;
 }
 
 function resizeRenderer(renderer, viewer) {
@@ -78,6 +131,7 @@ function resizeRenderer(renderer, viewer) {
 
 function animate(renderer) {
   requestAnimationFrame(() => animate(renderer));
+  mesh.rotation.y += 0.002;
   pointsMesh.rotation.y += 0.002;
   renderer.render(scene, camera);
 }
@@ -114,11 +168,11 @@ function init() {
       return response.text();
     })
     .then((text) => {
-      const parsedVertices = parseObjVertices(text);
-      if (parsedVertices.length === 0) {
-        throw new Error('No vertices found in OBJ file'); //no further processing if empty 
+      const { vertices, indices } = parseObjGeometry(text);
+      if (vertices.length === 0 || indices.length === 0) {
+        throw new Error('No vertices or faces found in OBJ file');
       }
-      setupGeometry(parsedVertices); 
+      setupGeometry(vertices, indices);
       updateBuildProgress(Number(slider.value));
       animate(renderer);
     })

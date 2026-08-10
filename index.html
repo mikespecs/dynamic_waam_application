@@ -5,21 +5,393 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>WAAM Marine Suitability Studio</title>
     <link rel="stylesheet" href="./public/styles.css" type="text/css"/>
-    <script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <main class="workspace">
 
-      document.addEventListener('DOMContentLoaded', () => {
-        const slider = document.getElementById('time_slider');
-        const output = document.getElementById('slider-value');
+          <section class="panel viewer-panel">
+          <div class="section-head">
+            <h2>3D Preview</h2>
+            <span class="section-kicker">Three.js render canvas</span>
+            <button class="panel-toggle" type="button" aria-expanded="true">Hide</button>
+          </div>
+          <div id="viewer3d" class="viewer-3d">
+            <!-- Fallback canvas for explicit sizing and accessibility -->
+             <div id="charts" width="800" height="600">
+                <canvas id="line_chart"></canvas>
+                <canvas id="scatter_chart"></canvas>
+                <canvas id="radar_chart"></canvas>
+                <canvas id="bar_chart"></canvas>
+             </div>
+            <canvas id="threeCanvas" width="800" height="600" aria-label="3D preview canvas"></canvas>
+            <label for="time_slider">Time Control:</label>
+            <input type="range" id="time_slider" name="time_slider" min="0" max="100" value="50" step="1">
+            <p>Value: <span id="slider-value">50</span></p>
+          </div>
+        </section>
 
-        if (!slider || !output) return;
+          <section id="materialLibrary" class="material-library" hidden>
+            <div class="section-head">
+              <h2>Material library</h2>
+              <span class="section-kicker">Drag into the zone or click to focus</span>
+            </div>
+            <div id="materialGrid" class="material-slider"></div>
+        </section>
 
-        output.textContent = slider.value;
+        <div class="module-grid">
+          <section class="panel ocean-panel">
+            <div class="section-head">
+              <h2>Ocean conditions</h2>
+              <span class="section-kicker">Converted live values</span>
+              <button class="panel-toggle" type="button" aria-expanded="true">Hide</button>
+            </div>
+            <div class="ocean-indicators">
+              <div class="indicator-donut">
+                <svg viewBox="0 0 100 100" class="donut-chart">
+                  <circle cx="50" cy="50" r="40" class="donut-bg"></circle>
+                  <circle cx="50" cy="50" r="40" class="donut-fill" id="corrosionRiskDonut"></circle>
+                </svg>
+                <div class="indicator-label">
+                  <span class="indicator-value" id="corrosionRiskValue">0</span>
+                  <span class="indicator-unit">%</span>
+                  <p class="indicator-title">Corrosion Risk</p>
+                </div>
+              </div>
+              <div class="indicator-donut">
+                <svg viewBox="0 0 100 100" class="donut-chart">
+                  <circle cx="50" cy="50" r="40" class="donut-bg"></circle>
+                  <circle cx="50" cy="50" r="40" class="donut-fill" id="waamSuitabilityDonut"></circle>
+                </svg>
+                <div class="indicator-label">
+                  <span class="indicator-value" id="waamSuitabilityValue">0</span>
+                  <span class="indicator-unit">%</span>
+                  <p class="indicator-title">WAAM Suitability</p>
+                </div>
+              </div>
+            </div>
+            <div class="slider-stack">
+              <label>
+                Water temperature
+                <input id="temperatureC" type="range" min="-2" max="35" step="0.5" />
+                <div class="value-row">
+                  <strong id="temperatureCValue"></strong>
+                  <span id="temperatureFValue"></span>
+                </div>
+              </label>
+              <label>
+                Salinity
+                <input id="salinityPsu" type="range" min="20" max="40" step="0.1" />
+                <div class="value-row">
+                  <strong id="salinityPsuValue"></strong>
+                  <span id="salinityPptValue"></span>
+                </div>
+              </label>
+              <label>
+                Depth
+                <input id="depthM" type="range" min="0" max="5500" step="50" />
+                <div class="value-row">
+                  <strong id="depthMValue"></strong>
+                  <span id="depthFtValue"></span>
+                </div>
+              </label>
+              <label>
+                pH
+                <input id="phValue" type="range" min="7.4" max="8.4" step="0.01" />
+                <div class="value-row">
+                  <strong id="phDisplay"></strong>
+                  <span>acidity marker</span>
+                </div>
+              </label>
+              <label>
+                Dissolved oxygen
+                <input id="oxygenMgL" type="range" min="1" max="10" step="0.1" />
+                <div class="value-row">
+                  <strong id="oxygenValue"></strong>
+                  <span id="oxygenMmolValue"></span>
+                </div>
+              </label>
+              <label>
+                Turbidity
+                <input id="turbidityNtu" type="range" min="0" max="100" step="1" />
+                <div class="value-row">
+                  <strong id="turbidityValue"></strong>
+                  <span>particle load</span>
+                </div>
+              </label>
+              <label>
+                Pollution index
+                <input id="pollutionIndex" type="range" min="0" max="10" step="1" />
+                <div class="value-row">
+                  <strong id="pollutionValue"></strong>
+                  <span>0 clean to 10 harsh</span>
+                </div>
+              </label>
+            </div>
+          </section>
 
-        slider.addEventListener('input', function() {
-          output.textContent = this.value;
-        });
-      });
-      
+          <section class="panel map-panel">
+            <div class="section-head">
+              <h2>ArcGIS ocean map</h2>
+              <span class="section-kicker">Layered map views</span>
+              <button class="panel-toggle" type="button" aria-expanded="true">Hide</button>
+              <button id="addElementButton" class="add-element-button" type="button" aria-expanded="false" aria-controls="materialLibrary">
+                Next
+              </button>
+            </div>
+            <iframe width="700" height="600" allow="local-network-access; geolocation" title="temperature_WOA23" src="https://ccv23.maps.arcgis.com/apps/mapviewer/index.html?configurableview=true&webmap=c24389d080024ea1bcbdcac06664eada&theme=light&heading=true&scroll=false&center=-3.683495111555269,26.961912221286475&scale=295828763.795777" ></iframe>
+            <iframe width="700" height="600" allow="local-network-access; geolocation" title="salinity_WOA23" src="https://ccv23.maps.arcgis.com/apps/mapviewer/index.html?configurableview=true&webmap=4dfc52038d4b4f07b6d189dac013ce0b&theme=light&heading=true&scroll=false&center=-3.7361844256221195,35.285664575358155&scale=295828763.7957775" ></iframe>
+            <iframe width="700" height="600" allow="local-network-access; geolocation" title="TimeMapHurricane" src="https://ccv23.maps.arcgis.com/apps/mapviewer/index.html?configurableview=true&webmap=3eab8c491afd4c8f884eae4eb98c8825&theme=light&share=true&scroll=false&center=-4.288588496632165,28.73232034520545&scale=147914381.897889" ></iframe>
+          </section>
+
+    
+
+        </div>
+      </main>
+
+      <aside class="side-rail">
+        <!-- <div class="brand-block">
+          <h1>WAAM & Oceanogrpahic Statistics</h1>
+        </div> -->
+         <section class="panel recommendation-panel">
+          <div class="section-head">
+            <h2>Recommended Alloy</h2>
+            <span class="section-kicker">Mission-weighted result</span>
+            <button class="panel-toggle" type="button" aria-expanded="true">Hide</button>
+          </div>
+          <div class="recommendation-copy">
+            <strong id="recommendationTitle">-</strong>
+            <p id="recommendationText"></p>
+            <p id="recommendationMeta" class="recommendation-meta"></p>
+          </div>
+        </section>
+        <details class="panel" open>
+          <summary>Mission profile</summary>
+          <div class="form-grid">
+            <label>
+              Component role
+              <select id="purposeSelect"></select>
+            </label>
+            <label>
+              Duty profile
+              <select id="loadProfileSelect"></select>
+            </label>
+            <label>
+              Cavitation exposure
+              <select id="cavitationSelect"></select>
+            </label>
+            <label>
+              Vibration severity
+              <select id="vibrationSelect"></select>
+            </label>
+            <label>
+              Impact events
+              <select id="impactSelect"></select>
+            </label>
+            <label>
+              Temperature cycling
+              <select id="tempSwingSelect"></select>
+            </label>
+            <label>
+              Biofouling pressure
+              <select id="biofoulingSelect"></select>
+              <div class="value-row">
+                <strong id="biofoulingValue"></strong>
+                <span>marine growth load</span>
+              </div>
+            </label>
+          </div>
+        </details>
+       
+      </aside>
+    </div>
+
+    <script type="module" src="./three_viz_setup.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  const ctx = document.getElementById('bar_chart');
+  const ctx2 = document.getElementById('scatter_chart');
+  const ctx3 = document.getElementById('line_chart');
+  const ctx4 = document.getElementById('radar_chart');
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+      datasets: [{
+        label: '# of Votes',
+        data: [12, 19, 3, 5, 2, 3],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+  new Chart(ctx2, {
+    type: 'scatter',
+    data: {
+  datasets: [{
+    label: 'Scatter Dataset',
+    data: [{
+      x: -10,
+      y: 0
+    }, {
+      x: 0,
+      y: 10
+    }, {
+      x: 10,
+      y: 5
+    }, {
+      x: 0.5,
+      y: 5.5
+    }],
+    backgroundColor: 'rgb(255, 99, 132)'
+  }],
+},
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true
+        }, 
+         x: {
+        type: 'linear',
+        position: 'bottom'
+      }
+      }
+    }
+  });
+
+  const labels3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  const data3 = {
+    labels: labels3,
+    datasets: [{
+      label: 'Performance',
+      data: [65, 59, 80, 81, 56, 55, 40],
+      fill: false,
+      borderColor: 'rgb(75, 192, 192)',
+      backgroundColor: 'rgba(75, 192, 192, 0.2)',
+      tension: 0.1
+    }]
+  };
+
+  new Chart(ctx3, {
+    type: 'line',
+    data: data3,
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  new Chart(ctx4, {
+    type: 'radar',
+  data: {
+  labels: [
+"Deposition rate",
+"Surface finish",
+"Porosity risk",
+"Thermal conductivity",
+"Build stability",
+"Cost impact"
+  ],
+  datasets: [{
+    label: 'My First Dataset',
+    data: [65, 59, 90, 81, 56, 55],
+    fill: true,
+    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+    borderColor: 'rgb(255, 99, 132)',
+    pointBackgroundColor: 'rgb(255, 99, 132)',
+    pointBorderColor: '#fff',
+    pointHoverBackgroundColor: '#fff',
+    pointHoverBorderColor: 'rgb(255, 99, 132)'
+  }, {
+    label: 'My Second Dataset',
+    data: [28, 48, 40, 19, 96, 27],
+    fill: true,
+    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+    borderColor: 'rgb(54, 162, 235)',
+    pointBackgroundColor: 'rgb(54, 162, 235)',
+    pointBorderColor: '#fff',
+    pointHoverBackgroundColor: '#fff',
+    pointHoverBorderColor: 'rgb(54, 162, 235)'
+  }]
+},
+  options: {
+    elements: {
+      line: {
+        borderWidth: 3
+      }
+    }
+  },
+  });
+</script>
+    <script type="module">
+      import { getFirestoreDoc } from './external_datasource/client/firestore_client_db_proc.js';
+
+      let loadedComponents = [];
+      let loadedMaterials = [];
+      let state = {
+        selectedComponentId: null,
+        selectedMaterialId: null,
+        placedMaterialIds: [],
+        materialLibraryOpen: false,
+        purpose: 'propulsion',
+        loadProfile: 'mixed',
+        cavitation: 'high',
+        vibration: 'medium',
+        impact: 'periodic',
+        tempSwings: 'moderate',
+        biofouling: 'medium',
+        temperatureC: 8,
+        salinityPsu: 34.8,
+        depthM: 1800,
+        phValue: 7.88,
+        oxygenMgL: 5.7,
+        turbidityNtu: 18,
+        pollutionIndex: 3,
+      };
+
+      async function initializeState() {
+        try {
+          const [componentsDoc, materialsDoc] = await Promise.all([
+            getFirestoreDoc('components', 'D9fH6d0bmiEy7ywdrsko'),
+            getFirestoreDoc('materials', 'dBiGoGY5uB6j9feiRhgD'),
+          ]);
+
+          loadedComponents = componentsDoc?.components || [];
+          loadedMaterials = materialsDoc?.materials || [];
+
+          if (loadedComponents.length === 0 || loadedMaterials.length === 0) {
+            console.warn('Firestore data missing components or materials; using default state values');
+          }
+
+          const defaultComponent = loadedComponents[0] || { id: 'propeller', purposeDefault: 'propulsion', componentModifiers: {} };
+          const defaultMaterial = loadedMaterials[0] || { id: 'nickel_aluminum_bronze' };
+
+          state.selectedComponentId = defaultComponent.id;
+          state.selectedMaterialId = defaultMaterial.id;
+          state.placedMaterialIds = [defaultMaterial.id];
+          state.purpose = defaultComponent.purposeDefault || state.purpose;
+
+          if (window.onFirestoreStateReady) {
+            window.onFirestoreStateReady({ loadedComponents, loadedMaterials, state });
+          }
+        } catch (error) {
+          console.error('Failed to load Firestore state collections:', error);
+        }
+      }
+
       const purposeOptions = [
         { id: "foundation_support", label: "Fixed pile / leg support" },
         { id: "bridge_support", label: "Bridge foundation" },
@@ -60,98 +432,7 @@
           { id: "medium", label: "Medium" },
           { id: "high", label: "High" },
         ],
-      };
-
-      const components = [
-        {
-          id: "default_component",
-          name: "Default component",
-          purposeDefault: "foundation_support",
-          componentModifiers: {
-            isMovingPart: false,
-            flowExposure: 1,
-            biofoulingSensitivity: 1,
-          },
-        },
-      ];
-
-      const materials = [
-        {
-          id: "default_material",
-          name: "Default alloy",
-          baseScore: 70,
-          corrosionModifiers: {
-            pH: 1,
-            salinity: 1,
-            pollution: 1,
-            temperature: 1,
-            turbidity: 1,
-            biofouling: 1,
-            flowVelocity: 1,
-            movingPart: 1,
-          },
-        },
-      ];
-
-      const {
-        CategoryScale,
-        Chart,
-        LinearScale,
-        LineController,
-        LineElement,
-        PointElement,
-        PieController,
-        ScatterController,
-        registry,
-        BarController,
-        BarElement,
-        DoughnutController,
-        ArcElement,
-        Title,
-        Tooltip,
-        Legend,
-      } = window.Chart;
-
-      Chart.register(
-        CategoryScale,
-        LinearScale,
-        LineController,
-        LineElement,
-        PointElement,
-        PieController,
-        ScatterController,
-        BarController,
-        BarElement,
-        DoughnutController,
-        ArcElement,
-        Title,
-        Tooltip,
-        Legend,
-      );
-
-      window.chartRegistry = registry;
-
-
-      const state = {
-        selectedComponentId: components[0].id,
-        selectedMaterialId: materials[0].id,
-        placedMaterialIds: [materials[0].id],
-        materialLibraryOpen: false,
-        purpose: components[0].purposeDefault,
-        loadProfile: "mixed",
-        cavitation: "high",
-        vibration: "medium",
-        impact: "periodic",
-        tempSwings: "moderate",
-        biofouling: "medium",
-        temperatureC: 8,
-        salinityPsu: 34.8,
-        depthM: 1800,
-        phValue: 7.88,
-        oxygenMgL: 5.7,
-        turbidityNtu: 18,
-        pollutionIndex: 3,
-      };
+      };  
 
       function cToF(value) {return value * 9 / 5 + 32;}
       function metersToFeet(value) {return value * 3.28084;}
@@ -159,7 +440,7 @@
       function clamp(value, min, max) {return Math.max(min, Math.min(max, value));}
 
       function getSelectedComponent() {
-        return components.find((component) => component.id === state.selectedComponentId) || components[0];
+        return loadedComponents.find((component) => component.id === state.selectedComponentId) || loadedComponents[0] || { componentModifiers: {}, name: 'Component' };
       }
 
       function getMissionFactors() {
@@ -238,6 +519,8 @@
       function scoreMaterial(material) {
         const mission = getMissionFactors();
         const mods = material.corrosionModifiers || {};
+        const strengthFactors = Array.isArray(material.strengths) ? material.strengths : [];
+        const baseScore = Number.isFinite(material.baseScore) ? material.baseScore : 50;
         const corrosionRisk =
           calculateBaseCorrosionRisk() *
           (
@@ -251,7 +534,7 @@
             ((mods.movingPart || 1) * mission.movingPartFactor * 0.08)
           );
 
-        let suitabilityScore = material.baseScore;
+        let suitabilityScore = baseScore;
 
         if (state.purpose === "propulsion") {
           if (material.id === "nickel_aluminum_bronze") suitabilityScore += 12;
@@ -308,7 +591,7 @@
       }
 
       function rankMaterials() {
-        return materials
+        return (loadedMaterials || [])
           .map((material) => scoreMaterial(material))
           .sort((a, b) => b.totalScore - a.totalScore);
       }
@@ -325,7 +608,59 @@
         });
       }
 
-      window.addEventListener("DOMContentLoaded", () => {
+      function getSelectedMaterial() {
+        return (loadedMaterials || []).find((material) => material.id === state.selectedMaterialId)
+          || loadedMaterials[0]
+          || { id: null, name: 'Material', baseScore: 50, corrosionModifiers: {}, strengths: [] };
+      }
+
+      function selectMaterial(materialId) {
+        if (!materialId) return;
+        state.selectedMaterialId = materialId;
+        syncIndicators();
+        syncRecommendation();
+        renderMaterialLibrary();
+      }
+
+      function renderMaterialLibrary() {
+        const materialGrid = document.querySelector("#materialGrid");
+        if (!materialGrid) return;
+        materialGrid.innerHTML = "";
+
+        const materialsToShow = loadedMaterials.length > 0 ? loadedMaterials : [{
+          id: 'fallback_material',
+          name: 'Fallback material',
+          family: 'Default alloy',
+          strengths: [],
+          baseScore: 50,
+          corrosionModifiers: {},
+        }];
+
+        materialsToShow.forEach((material) => {
+          const card = document.createElement("article");
+          card.className = `material-card ${state.selectedMaterialId === material.id ? "active" : ""}`;
+          card.innerHTML = `
+            <div class="material-thumbnail"></div>
+            <div class="material-info">
+              <strong>${material.name || material.id}</strong>
+              <span>${material.family || ''}</span>
+              <p class="material-strengths">${(Array.isArray(material.strengths) ? material.strengths.slice(0, 3).join(', ') : '')}</p>
+              <button type="button" class="select-material-button" data-material-id="${material.id}">
+                ${state.selectedMaterialId === material.id ? 'Selected' : 'Select'}
+              </button>
+            </div>
+          `;
+          const button = card.querySelector(".select-material-button");
+          if (button) {
+            button.addEventListener("click", () => selectMaterial(material.id));
+          }
+          materialGrid.appendChild(card);
+        });
+      }
+
+      window.addEventListener("DOMContentLoaded", async () => {
+        await initializeState();
+
         const els = {
           addElementButton: document.querySelector("#addElementButton"),
           materialLibrary: document.querySelector("#materialLibrary"),
@@ -365,6 +700,15 @@
           recommendationMeta: document.querySelector("#recommendationMeta"),
           viewer3d: document.querySelector("#viewer3d"),
         };
+
+        const slider = document.getElementById('time_slider');
+        const output = document.getElementById('slider-value');
+        if (slider && output) {
+          output.textContent = slider.value;
+          slider.addEventListener('input', function() {
+            output.textContent = this.value;
+          });
+        }
 
         function syncDisplays() {
           if (els.temperatureCValue) els.temperatureCValue.textContent = `${state.temperatureC.toFixed(1)} C`;
@@ -415,13 +759,16 @@
           const component = getSelectedComponent();
           if (!best) return;
 
+          const materialName = best.material.name || best.material.id || 'Selected material';
+          const strengths = Array.isArray(best.material.strengths) ? best.material.strengths.slice(0, 2) : [];
+
           if (els.recommendationTitle) {
-            els.recommendationTitle.textContent = best.material.name;
+            els.recommendationTitle.textContent = materialName;
           }
 
           if (els.recommendationText) {
             els.recommendationText.textContent =
-              `${best.material.name} is the recommended WAAM alloy for this ${component.name.toLowerCase()} because its strengths in ${best.material.strengths.slice(0, 2)}`;
+              `${materialName} is the recommended WAAM alloy for this ${component.name.toLowerCase()} because its strengths in ${strengths.join(', ')}`;
           }
 
           if (els.recommendationMeta) {
@@ -565,198 +912,9 @@ if (els.addElementButton) {
         syncRecommendation();
       });
     </script>
-  </head>
-  <body>
-    <div class="app-shell">
-      <main class="workspace">
 
-          <section id="materialLibrary" class="material-library" hidden>
-            <div class="section-head">
-              <h2>Material library</h2>
-              <span class="section-kicker">Drag into the zone or click to focus</span>
-            </div>
-            <div id="materialGrid" class="material-slider"></div>
-        </section>
-
-        <div class="module-grid">
-          <section class="panel ocean-panel">
-            <div class="section-head">
-              <h2>Ocean conditions</h2>
-              <span class="section-kicker">Converted live values</span>
-            </div>
-            <div class="ocean-indicators">
-              <div class="indicator-donut">
-                <svg viewBox="0 0 100 100" class="donut-chart">
-                  <circle cx="50" cy="50" r="40" class="donut-bg"></circle>
-                  <circle cx="50" cy="50" r="40" class="donut-fill" id="corrosionRiskDonut"></circle>
-                </svg>
-                <div class="indicator-label">
-                  <span class="indicator-value" id="corrosionRiskValue">0</span>
-                  <span class="indicator-unit">%</span>
-                  <p class="indicator-title">Corrosion Risk</p>
-                </div>
-              </div>
-              <div class="indicator-donut">
-                <svg viewBox="0 0 100 100" class="donut-chart">
-                  <circle cx="50" cy="50" r="40" class="donut-bg"></circle>
-                  <circle cx="50" cy="50" r="40" class="donut-fill" id="waamSuitabilityDonut"></circle>
-                </svg>
-                <div class="indicator-label">
-                  <span class="indicator-value" id="waamSuitabilityValue">0</span>
-                  <span class="indicator-unit">%</span>
-                  <p class="indicator-title">WAAM Suitability</p>
-                </div>
-              </div>
-            </div>
-            <div class="slider-stack">
-              <label>
-                Water temperature
-                <input id="temperatureC" type="range" min="-2" max="35" step="0.5" />
-                <div class="value-row">
-                  <strong id="temperatureCValue"></strong>
-                  <span id="temperatureFValue"></span>
-                </div>
-              </label>
-              <label>
-                Salinity
-                <input id="salinityPsu" type="range" min="20" max="40" step="0.1" />
-                <div class="value-row">
-                  <strong id="salinityPsuValue"></strong>
-                  <span id="salinityPptValue"></span>
-                </div>
-              </label>
-              <label>
-                Depth
-                <input id="depthM" type="range" min="0" max="5500" step="50" />
-                <div class="value-row">
-                  <strong id="depthMValue"></strong>
-                  <span id="depthFtValue"></span>
-                </div>
-              </label>
-              <label>
-                pH
-                <input id="phValue" type="range" min="7.4" max="8.4" step="0.01" />
-                <div class="value-row">
-                  <strong id="phDisplay"></strong>
-                  <span>acidity marker</span>
-                </div>
-              </label>
-              <label>
-                Dissolved oxygen
-                <input id="oxygenMgL" type="range" min="1" max="10" step="0.1" />
-                <div class="value-row">
-                  <strong id="oxygenValue"></strong>
-                  <span id="oxygenMmolValue"></span>
-                </div>
-              </label>
-              <label>
-                Turbidity
-                <input id="turbidityNtu" type="range" min="0" max="100" step="1" />
-                <div class="value-row">
-                  <strong id="turbidityValue"></strong>
-                  <span>particle load</span>
-                </div>
-              </label>
-              <label>
-                Pollution index
-                <input id="pollutionIndex" type="range" min="0" max="10" step="1" />
-                <div class="value-row">
-                  <strong id="pollutionValue"></strong>
-                  <span>0 clean to 10 harsh</span>
-                </div>
-              </label>
-            </div>
-          </section>
-
-          <section class="panel map-panel">
-            <div class="section-head">
-              <h2>ArcGIS ocean map</h2>
-                <button id="addElementButton" class="add-element-button" type="button" aria-expanded="false" aria-controls="materialLibrary" >
-             Next
-              
-            </button>
-            </div>
-            <iframe width="700" height="600" allow="local-network-access; geolocation" title="temperature_WOA23" src="https://ccv23.maps.arcgis.com/apps/mapviewer/index.html?configurableview=true&webmap=c24389d080024ea1bcbdcac06664eada&theme=light&heading=true&scroll=false&center=-3.683495111555269,26.961912221286475&scale=295828763.795777" ></iframe>
-            <iframe width="700" height="600" allow="local-network-access; geolocation" title="salinity_WOA23" src="https://ccv23.maps.arcgis.com/apps/mapviewer/index.html?configurableview=true&webmap=4dfc52038d4b4f07b6d189dac013ce0b&theme=light&heading=true&scroll=false&center=-3.7361844256221195,35.285664575358155&scale=295828763.7957775" ></iframe>
-            <iframe width="700" height="600" allow="local-network-access; geolocation" title="TimeMapHurricane" src="https://ccv23.maps.arcgis.com/apps/mapviewer/index.html?configurableview=true&webmap=3eab8c491afd4c8f884eae4eb98c8825&theme=light&share=true&scroll=false&center=-4.288588496632165,28.73232034520545&scale=147914381.897889" ></iframe>
-          </section>
-
-        <section class="panel viewer-panel">
-          <div class="section-head">
-            <h2>3D Preview</h2>
-            <span class="section-kicker">Three.js render canvas</span>
-          </div>
-          <div id="viewer3d" class="viewer-3d">
-            <!-- Fallback canvas for explicit sizing and accessibility -->
-            <canvas id="threeCanvas" width="800" height="600" aria-label="3D preview canvas"></canvas>
-            <label for="time_slider">Time Control:</label>
-            <input type="range" id="time_slider" name="time_slider" min="0" max="100" value="50" step="1">
-            <p>Value: <span id="slider-value">50</span></p>
-          </div>
-        </section>
-
-        </div>
-      </main>
-
-      <aside class="side-rail">
-        <!-- <div class="brand-block">
-          <h1>WAAM & Oceanogrpahic Statistics</h1>
-        </div> -->
-         <section class="panel recommendation-panel">
-          <div class="section-head">
-            <h2>Recommended Alloy</h2>
-            <span class="section-kicker">Mission-weighted result</span>
-          </div>
-          <div class="recommendation-copy">
-            <strong id="recommendationTitle">-</strong>
-            <p id="recommendationText"></p>
-            <p id="recommendationMeta" class="recommendation-meta"></p>
-          </div>
-        </section>
-        <details class="panel" open>
-          <summary>Mission profile</summary>
-          <div class="form-grid">
-            <button id="btnCheck">Click</button>
-            <label>
-              Component role
-              <select id="purposeSelect"></select>
-            </label>
-            <label>
-              Duty profile
-              <select id="loadProfileSelect"></select>
-            </label>
-            <label>
-              Cavitation exposure
-              <select id="cavitationSelect"></select>
-            </label>
-            <label>
-              Vibration severity
-              <select id="vibrationSelect"></select>
-            </label>
-            <label>
-              Impact events
-              <select id="impactSelect"></select>
-            </label>
-            <label>
-              Temperature cycling
-              <select id="tempSwingSelect"></select>
-            </label>
-            <label>
-              Biofouling pressure
-              <select id="biofoulingSelect"></select>
-              <div class="value-row">
-                <strong id="biofoulingValue"></strong>
-                <span>marine growth load</span>
-              </div>
-            </label>
-          </div>
-        </details>
-       
-      </aside>
-    </div>
-
-    <script type="module" src="./three_viz_setup.js"></script>
-    <script type="module" src="./app_ui.js"></script>
+  
+    
 
   </body>
 </html>
