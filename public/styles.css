@@ -442,6 +442,22 @@ h1 {
   background: #08101d;
 }
 
+#AW {
+  color: yellow;
+}
+
+#estimates {
+  height: auto;
+  background-color: black;
+  border-radius: 2%;
+  width: 100%;
+  padding: 10px;
+  overflow-wrap: break-word;
+  color: white;
+  margin-top: 20px;
+
+}
+
 .viewer-3d {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(200px, 240px) minmax(0, 1fr);
@@ -467,11 +483,16 @@ h1 {
   margin-bottom: 10px;
 }
 
+#tempSpan {
+  color: red;
+}
+
 .viewer-3d canvas {
   width: 100%;
   min-height: 380px;
   border-radius: 14px;
   background: #08101d;
+  margin-top: 20px;
 }
 
 .viewer-3d #charts {

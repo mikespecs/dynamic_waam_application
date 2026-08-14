@@ -203,6 +203,11 @@ machiningHours: 3,
 material: copperAlloy
 });
 
-
+window.addEventListener("DOMContentLoaded", () => {
+    document.querySelector("#estimates").insertAdjacentHTML('beforeend', "<h3 id='AW'>GTAW Gas Tungsten Arc Welding");
+    document.querySelector("#estimates").insertAdjacentHTML('beforeend', JSON.stringify(gtaw, null, 4));
+    document.querySelector("#estimates").insertAdjacentHTML('beforeend', "<h3 id='AW'>PTAW Plasma Transferred Arc Welding");
+    document.querySelector("#estimates").insertAdjacentHTML('beforeend', JSON.stringify(ptaw, null, 4));
+}) 
 console.log("GTAW:", gtaw);
 console.log("PTAW:", ptaw);

@@ -61,11 +61,17 @@
               </div>
             </details>
             <div>
-            <canvas id="threeCanvas" aria-label="3D preview canvas"></canvas>
+            <h3>Current Temperature: <span id="tempSpan">1250° C</span></h3>
+            <canvas id="threeCanvas" aria-label="3D preview canvas">
+            </canvas>
             <label for="time_slider">Time Control:</label>
             <input type="range" id="time_slider" name="time_slider" min="0" max="100" value="50" step="1">
             <p>Value: <span id="slider-value">50</span></p>
+            <div id="estimates">
+              <h2>Estimates</h2>
             </div>
+            </div>
+            
           </div>
         </section>
 
@@ -201,6 +207,7 @@
 
     <script type="module" src="./three_viz_setup.js"></script>
      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+     <script type="module" src="./estimates.js"></script>
 
     <script type="module">
       import { getFirestoreDoc } from './external_datasource/client/firestore_client_db_proc.js';
@@ -232,7 +239,7 @@
         try {
           const [componentsDoc, materialsDoc] = await Promise.all([
             getFirestoreDoc('components', 'D9fH6d0bmiEy7ywdrsko'),
-            getFirestoreDoc('materials', 'P0zAjeUSrgfZouDYeein'),
+            getFirestoreDoc('materials', 'pUeHNl7OPGyPWtRtGFtf'),
           ]);
 
           loadedComponents = componentsDoc?.components || [];
@@ -249,6 +256,7 @@
           state.selectedMaterialId = defaultMaterial.id;
           state.placedMaterialIds = [defaultMaterial.id];
           state.purpose = defaultComponent.purposeDefault || state.purpose;
+
 
           const ctx = document.getElementById('bar_chart');
   const ctx2 = document.getElementById('scatter_chart');
@@ -280,7 +288,28 @@ new Chart(ctx, {
       backgroundColor: [
       'rgba(0, 99, 132, 200)',
     ],
-      },
+      },  
+
+      {
+      label: 'Wire Melting Point Min C',
+      data: loadedMaterials.map(material => 
+        {return material.waamParameters?.wire? material.waamParameters?.wire?.meltingPointMinC : 0}
+      ), 
+     
+      backgroundColor: 'rgba(255, 0, 0, 0.6)',
+  
+
+    },
+    {
+      label: 'Wire Melting Point Max C',
+      data: loadedMaterials.map(material => 
+        {return material.waamParameters?.wire? material.waamParameters?.wire?.meltingPointMaxC : 0}
+      ), 
+      
+      
+      backgroundColor: 'rgba(0, 0, 255, 0.6)',
+
+    },
     ]
   },
   options: {
@@ -367,7 +396,7 @@ new Chart(ctx, {
 "Cost impact"
   ],
   datasets: [{
-    label: 'My First Dataset',
+    label: loadedMaterials[0].name,
     data: [65, 59, 90, 81, 56, 55],
     fill: true,
     backgroundColor: 'rgba(255, 99, 132, 0.2)',
@@ -377,7 +406,7 @@ new Chart(ctx, {
     pointHoverBackgroundColor: '#fff',
     pointHoverBorderColor: 'rgb(255, 99, 132)'
   }, {
-    label: 'My Second Dataset',
+    label: loadedMaterials[3].name,
     data: [28, 48, 40, 19, 96, 27],
     fill: true,
     backgroundColor: 'rgba(54, 162, 235, 0.2)',
