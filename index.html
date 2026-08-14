@@ -18,25 +18,55 @@
           </div>
           <div id="viewer3d" class="viewer-3d">
             <!-- Fallback canvas for explicit sizing and accessibility -->
-             <div id="charts" width="800" height="600">
-                <canvas id="line_chart"></canvas>
-                <canvas id="scatter_chart"></canvas>
-                <canvas id="radar_chart"></canvas>
-                <canvas id="bar_chart"></canvas>
-             </div>
-            <canvas id="threeCanvas" width="800" height="600" aria-label="3D preview canvas"></canvas>
+            <div id="charts" width="800" height="600">
+              <canvas id="line_chart"></canvas>
+              <canvas id="bar_chart"></canvas>
+              <canvas id="radar_chart"></canvas>
+            </div>
+            <details class="panel mission-profile-panel" open>
+              <summary>Mission profile</summary>
+              <div class="form-grid">
+                <label>
+                  Component role
+                  <select id="purposeSelect"></select>
+                </label>
+                <label>
+                  Duty profile
+                  <select id="loadProfileSelect"></select>
+                </label>
+                <label>
+                  Cavitation exposure
+                  <select id="cavitationSelect"></select>
+                </label>
+                <label>
+                  Vibration severity
+                  <select id="vibrationSelect"></select>
+                </label>
+                <label>
+                  Impact events
+                  <select id="impactSelect"></select>
+                </label>
+                <label>
+                  Temperature cycling
+                  <select id="tempSwingSelect"></select>
+                </label>
+                <label>
+                  Biofouling pressure
+                  <select id="biofoulingSelect"></select>
+                  <div class="value-row">
+                    <strong id="biofoulingValue"></strong>
+                    <span>marine growth load</span>
+                  </div>
+                </label>
+              </div>
+            </details>
+            <div>
+            <canvas id="threeCanvas" aria-label="3D preview canvas"></canvas>
             <label for="time_slider">Time Control:</label>
             <input type="range" id="time_slider" name="time_slider" min="0" max="100" value="50" step="1">
             <p>Value: <span id="slider-value">50</span></p>
-          </div>
-        </section>
-
-          <section id="materialLibrary" class="material-library" hidden>
-            <div class="section-head">
-              <h2>Material library</h2>
-              <span class="section-kicker">Drag into the zone or click to focus</span>
             </div>
-            <div id="materialGrid" class="material-slider"></div>
+          </div>
         </section>
 
         <div class="module-grid">
@@ -165,124 +195,155 @@
             <p id="recommendationMeta" class="recommendation-meta"></p>
           </div>
         </section>
-        <details class="panel" open>
-          <summary>Mission profile</summary>
-          <div class="form-grid">
-            <label>
-              Component role
-              <select id="purposeSelect"></select>
-            </label>
-            <label>
-              Duty profile
-              <select id="loadProfileSelect"></select>
-            </label>
-            <label>
-              Cavitation exposure
-              <select id="cavitationSelect"></select>
-            </label>
-            <label>
-              Vibration severity
-              <select id="vibrationSelect"></select>
-            </label>
-            <label>
-              Impact events
-              <select id="impactSelect"></select>
-            </label>
-            <label>
-              Temperature cycling
-              <select id="tempSwingSelect"></select>
-            </label>
-            <label>
-              Biofouling pressure
-              <select id="biofoulingSelect"></select>
-              <div class="value-row">
-                <strong id="biofoulingValue"></strong>
-                <span>marine growth load</span>
-              </div>
-            </label>
-          </div>
-        </details>
-       
+
       </aside>
     </div>
 
     <script type="module" src="./three_viz_setup.js"></script>
      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script>
-  const ctx = document.getElementById('bar_chart');
+    <script type="module">
+      import { getFirestoreDoc } from './external_datasource/client/firestore_client_db_proc.js';
+
+      let loadedComponents = [];
+      let loadedMaterials = [];
+      let state = {
+        selectedComponentId: null,
+        selectedMaterialId: null,
+        placedMaterialIds: [],
+        materialLibraryOpen: false,
+        purpose: 'propulsion',
+        loadProfile: 'mixed',
+        cavitation: 'high',
+        vibration: 'medium',
+        impact: 'periodic',
+        tempSwings: 'moderate',
+        biofouling: 'medium',
+        temperatureC: 8,
+        salinityPsu: 34.8,
+        depthM: 1800,
+        phValue: 7.88,
+        oxygenMgL: 5.7,
+        turbidityNtu: 18,
+        pollutionIndex: 3,
+      };
+
+      async function initializeState() {
+        try {
+          const [componentsDoc, materialsDoc] = await Promise.all([
+            getFirestoreDoc('components', 'D9fH6d0bmiEy7ywdrsko'),
+            getFirestoreDoc('materials', 'P0zAjeUSrgfZouDYeein'),
+          ]);
+
+          loadedComponents = componentsDoc?.components || [];
+          loadedMaterials = materialsDoc?.materials || [];
+
+          if (loadedComponents.length === 0 || loadedMaterials.length === 0) {
+            console.warn('Firestore data missing components or materials; using default state values');
+          }
+
+          const defaultComponent = loadedComponents[0] || { id: 'propeller', purposeDefault: 'propulsion', componentModifiers: {} };
+          const defaultMaterial = loadedMaterials[0] || { id: 'nickel_aluminum_bronze' };
+
+          state.selectedComponentId = defaultComponent.id;
+          state.selectedMaterialId = defaultMaterial.id;
+          state.placedMaterialIds = [defaultMaterial.id];
+          state.purpose = defaultComponent.purposeDefault || state.purpose;
+
+          const ctx = document.getElementById('bar_chart');
   const ctx2 = document.getElementById('scatter_chart');
   const ctx3 = document.getElementById('line_chart');
   const ctx4 = document.getElementById('radar_chart');
 
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
-      datasets: [{
-        label: '# of Votes',
-        data: [12, 19, 3, 5, 2, 3],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      scales: {
-        y: {
-          beginAtZero: true
-        }
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: loadedMaterials.map(material => material.name),
+
+    datasets: [
+      {
+        label: 'Weld Voltage',
+        data: loadedMaterials.map(material => {
+   return material.waamParameters?.process?.weldVoltageV? material.waamParameters?.process?.weldVoltageV : 0;
+}), 
+
+      backgroundColor: [
+      'rgba(255, 99, 132, 200)',
+    ],
+      },
+      {
+        label: 'Weld Speed (Meters per min)', //stable droplet transfer (spatter is messy droplets)
+        data: loadedMaterials.map(material => {
+   return material.waamParameters?.process?.weldSpeedMPerMin? material.waamParameters?.process?.weldSpeedMPerMin : 0;
+}), 
+
+      backgroundColor: [
+      'rgba(0, 99, 132, 200)',
+    ],
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: true
       }
     }
-  });
-  new Chart(ctx2, {
-    type: 'scatter',
-    data: {
-  datasets: [{
-    label: 'Scatter Dataset',
-    data: [{
-      x: -10,
-      y: 0
-    }, {
-      x: 0,
-      y: 10
-    }, {
-      x: 10,
-      y: 5
-    }, {
-      x: 0.5,
-      y: 5.5
-    }],
-    backgroundColor: 'rgb(255, 99, 132)'
-  }],
-},
-    options: {
-      scales: {
-        y: {
-          beginAtZero: true
-        }, 
-         x: {
-        type: 'linear',
-        position: 'bottom'
-      }
-      }
-    }
-  });
-
-  const labels3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
-  const data3 = {
-    labels: labels3,
-    datasets: [{
-      label: 'Performance',
-      data: [65, 59, 80, 81, 56, 55, 40],
-      fill: false,
-      borderColor: 'rgb(75, 192, 192)',
-      backgroundColor: 'rgba(75, 192, 192, 0.2)',
-      tension: 0.1
-    }]
-  };
-
+  }
+});
+  
   new Chart(ctx3, {
     type: 'line',
-    data: data3,
+    data:  {
+    labels: loadedMaterials.map(material => material.name),
+    datasets: [
+      {
+      label: 'Ultimate Tensile Max',
+      data: loadedMaterials.map(material => 
+        {return material.waamParameters?.mechanicalProperties?.ultimateTensileStrengthMPa? material.waamParameters?.mechanicalProperties?.ultimateTensileStrengthMPa?.xyMax : 0}
+      ), 
+      fill: false,
+      borderColor: 'rgb(255, 255, 255)',
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      tension: 0.3, 
+
+    }, {
+      label: 'Ultimate Tensile Min',
+      data: loadedMaterials.map(material => 
+        {return material.waamParameters?.mechanicalProperties?.ultimateTensileStrengthMPa? material.waamParameters?.mechanicalProperties?.ultimateTensileStrengthMPa?.xyMin : 0}
+      ), 
+      fill: false,
+      borderColor: 'rgb(75, 192, 0)',
+      backgroundColor: 'rgba(75, 192, 0, 0.2)',
+      tension: 0.3,
+      borderDash: [5,10]
+    }, 
+    {
+      label: 'Yield Max',
+      data: loadedMaterials.map(material => 
+        {return material.waamParameters?.mechanicalProperties?.yieldStrengthMPa? material.waamParameters?.mechanicalProperties?.yieldStrengthMPa?.xyMax : 0}
+      ), 
+      fill: false,
+      borderColor: 'rgb(255, 255, 20)',
+      backgroundColor: 'rgba(255, 255, 20, 0.2)',
+      tension: 0.3
+    },
+    {
+      label: 'Yield Min',
+      data: loadedMaterials.map(material => 
+        {return material.waamParameters?.mechanicalProperties?.yieldStrengthMPa? material.waamParameters?.mechanicalProperties?.yieldStrengthMPa?.xyMin : 0}
+      ), 
+      fill: false,
+      borderColor: 'rgb(255, 0, 255)',
+      backgroundColor: 'rgba(255, 0, 255, 0.2)',
+      tension: 0.3, 
+            borderDash: [5,10]
+
+    },
+  
+  ]
+  },
     options: {
       responsive: true,
       maintainAspectRatio: true,
@@ -335,54 +396,6 @@
     }
   },
   });
-</script>
-    <script type="module">
-      import { getFirestoreDoc } from './external_datasource/client/firestore_client_db_proc.js';
-
-      let loadedComponents = [];
-      let loadedMaterials = [];
-      let state = {
-        selectedComponentId: null,
-        selectedMaterialId: null,
-        placedMaterialIds: [],
-        materialLibraryOpen: false,
-        purpose: 'propulsion',
-        loadProfile: 'mixed',
-        cavitation: 'high',
-        vibration: 'medium',
-        impact: 'periodic',
-        tempSwings: 'moderate',
-        biofouling: 'medium',
-        temperatureC: 8,
-        salinityPsu: 34.8,
-        depthM: 1800,
-        phValue: 7.88,
-        oxygenMgL: 5.7,
-        turbidityNtu: 18,
-        pollutionIndex: 3,
-      };
-
-      async function initializeState() {
-        try {
-          const [componentsDoc, materialsDoc] = await Promise.all([
-            getFirestoreDoc('components', 'D9fH6d0bmiEy7ywdrsko'),
-            getFirestoreDoc('materials', 'dBiGoGY5uB6j9feiRhgD'),
-          ]);
-
-          loadedComponents = componentsDoc?.components || [];
-          loadedMaterials = materialsDoc?.materials || [];
-
-          if (loadedComponents.length === 0 || loadedMaterials.length === 0) {
-            console.warn('Firestore data missing components or materials; using default state values');
-          }
-
-          const defaultComponent = loadedComponents[0] || { id: 'propeller', purposeDefault: 'propulsion', componentModifiers: {} };
-          const defaultMaterial = loadedMaterials[0] || { id: 'nickel_aluminum_bronze' };
-
-          state.selectedComponentId = defaultComponent.id;
-          state.selectedMaterialId = defaultMaterial.id;
-          state.placedMaterialIds = [defaultMaterial.id];
-          state.purpose = defaultComponent.purposeDefault || state.purpose;
 
           if (window.onFirestoreStateReady) {
             window.onFirestoreStateReady({ loadedComponents, loadedMaterials, state });
@@ -441,6 +454,27 @@
 
       function getSelectedComponent() {
         return loadedComponents.find((component) => component.id === state.selectedComponentId) || loadedComponents[0] || { componentModifiers: {}, name: 'Component' };
+      }
+
+      //verification
+      function getComponentForPurpose(purposeId) {
+        return loadedComponents.find((component) => component.purposeDefault === purposeId)
+          || loadedComponents.find((component) => component.id === state.selectedComponentId)
+          || loadedComponents[0]
+          || { componentModifiers: {}, name: 'Component', objPath: null };
+      }
+
+      function syncThreeModelFromComponentRole() {
+        const matchingComponent = getComponentForPurpose(state.purpose);
+        if (!matchingComponent) return;
+        //updating live state 
+        state.selectedComponentId = matchingComponent.id || state.selectedComponentId;
+
+        if (matchingComponent.objPath) {
+          window.dispatchEvent(new CustomEvent('three-model-source-changed', {
+            detail: { objPath: matchingComponent.objPath },
+          }));
+        }
       }
 
       function getMissionFactors() {
@@ -665,6 +699,7 @@
           addElementButton: document.querySelector("#addElementButton"),
           materialLibrary: document.querySelector("#materialLibrary"),
           materialDropzone: document.querySelector("#materialDropzone"),
+          //mission profile
           purposeSelect: document.querySelector("#purposeSelect"),
           loadProfileSelect: document.querySelector("#loadProfileSelect"),
           cavitationSelect: document.querySelector("#cavitationSelect"),
@@ -672,6 +707,7 @@
           impactSelect: document.querySelector("#impactSelect"),
           tempSwingSelect: document.querySelector("#tempSwingSelect"),
           biofoulingSelect: document.querySelector("#biofoulingSelect"),
+          //ocean conditions
           temperatureC: document.querySelector("#temperatureC"),
           salinityPsu: document.querySelector("#salinityPsu"),
           depthM: document.querySelector("#depthM"),
@@ -850,6 +886,7 @@ if (els.addElementButton) {
         if (els.purposeSelect) {
           els.purposeSelect.addEventListener("change", (event) => {
             state.purpose = event.target.value;
+            syncThreeModelFromComponentRole();
             syncIndicators();
             syncRecommendation();
           });
@@ -908,6 +945,7 @@ if (els.addElementButton) {
 
         syncSelectors();
         syncDisplays();
+        syncThreeModelFromComponentRole();
         syncIndicators();
         syncRecommendation();
       });

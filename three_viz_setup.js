@@ -1,9 +1,9 @@
 import * as THREE from '/node_modules/three/build/three.module.js';
 
-
-const OBJ_PATH = "https://www.dropbox.com/scl/fi/xctklne8w7ci3qkmhdzj1/Meshy_AI_Golden_Propeller_0810004609_texture.obj?rlkey=g9yv9idguza6euc2m4zijub36&st=i0epvubx&dl=0";
+const DEFAULT_OBJ_PATH = "https://www.dropbox.com/scl/fi/xctklne8w7ci3qkmhdzj1/Meshy_AI_Golden_Propeller_0810004609_texture.obj?rlkey=g9yv9idguza6euc2m4zijub36&st=i0epvubx&dl=0";
 const SLIDER_RANGE = 100;
 
+//scene setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, 0.8, 0.01, 1000);
 camera.position.set(0, 0.9, 2);
@@ -12,6 +12,7 @@ camera.lookAt(0, 0, 0);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
 scene.add(ambientLight);
 
+//light physics
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
 directionalLight.position.set(3, 5, 2);
 scene.add(directionalLight);
@@ -39,6 +40,8 @@ scene.add(pointsMesh);
 let totalIndices = 0;
 let totalVertices = 0;
 let positionsArray = null;
+let activeLoadToken = 0;
+let currentBuildProgress = 0;
 
 function parseObjGeometry(objText) {
   const vertices = [];
@@ -148,6 +151,7 @@ function init() {
     return;
   }
 
+  //render inside external index.html canvas kind of similiar to chart.js 'new Chart(ctx)'
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setClearColor(0x0f1d33);
@@ -160,7 +164,15 @@ function init() {
   slider.addEventListener('input', (event) => {
     const value = Number(event.target.value);
     output.textContent = value;
+    currentBuildProgress = value;
     updateBuildProgress(value);
+  });
+
+  //crucial for attaining Firestore objects containing DROPBOX path
+  window.addEventListener('three-model-source-changed', (event) => {
+    const objPath = event.detail?.objPath;
+    if (!objPath) return;
+    loadObjFromSource(objPath, currentBuildProgress || Number(slider.value));
   });
 
   // Normalize common shared-link hosts to raw downloadable forms
@@ -203,7 +215,7 @@ function init() {
         const contentType = res.headers.get('content-type') || '';
         const text = await res.text();
 
-        // If we get an HTML page back, it's probably a preview page — treat as failure
+        // If we get an HTML page back, it's probably a preview page treated as failure
         if (contentType.includes('text/html') || text.trim().startsWith('<!DOCTYPE html') || text.includes('<html')) {
           console.warn(`Fetched HTML preview from ${u}`);
           return null;
@@ -242,21 +254,30 @@ function init() {
     return null;
   }
 
-  (async () => {
+  async function loadObjFromSource(objPath, sliderValue = Number(slider.value)) {
+    const loadId = ++activeLoadToken;
     try {
-      const text = await fetchObjText(OBJ_PATH);
-      if (!text) throw new Error(`Unable to download raw OBJ from ${OBJ_PATH}`);
+      const text = await fetchObjText(objPath);
+      if (!text) throw new Error(`Unable to download raw OBJ from ${objPath}`);
 
       const { vertices, indices } = parseObjGeometry(text);
       if (vertices.length === 0 || indices.length === 0) {
         throw new Error('No vertices or faces found in OBJ file');
       }
+
+      if (loadId !== activeLoadToken) return;
       setupGeometry(vertices, indices);
-      updateBuildProgress(Number(slider.value));
-      animate(renderer);
+      updateBuildProgress(sliderValue);
     } catch (error) {
-      console.error('OBJ load/parse error:', error);
+      if (loadId === activeLoadToken) {
+        console.error('OBJ load/parse error:', error);
+      }
     }
+  }
+
+  (async () => {
+    await loadObjFromSource(DEFAULT_OBJ_PATH, Number(slider.value));
+    animate(renderer);
   })();
 }
 
