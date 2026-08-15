@@ -13,5 +13,8 @@ On Edge: https://www.bing.com/ck/a?!&&p=8c5eaf83b141a0bfe4b3008a23e38f3e2e4d5967
 
 On Chrome: https://www.bing.com/ck/a?!&&p=d7ea05acbd34c38bca307b4c2dcbf9237ac1ea660de2a2a87ecc97bd37a5ceb0JmltdHM9MTc4NjY2NTYwMA&ptn=3&ver=2&hsh=4&fclid=2963dea4-c80e-69b2-3500-cd73c9d668f0&psq=accelrated+gpu+chrome&u=a1aHR0cHM6Ly9nZWVrcmV3aW5kLmNvbS9ob3ctdG8tZW5hYmxlLW9yLWRpc2FibGUtZ3JhcGhpY3MtYWNjZWxlcmF0aW9uLWluLWNocm9tZS8
 
+The applications entry point is in the ‘waam_app.js’ file, which is set up to start a lightweight Node.js server with requests and responses allowing the browser to interpret HTML, JavaScript, JSON, CSS, images, and 3D model files that make up the application. These file types or “mime types” are written to the head of the response passed to the content type field.  This was particularly helpful for having the browser recognize and request the .obj, .mtl, and other assets I was working with through the same local server. The file also prevents requests from accessing files outside the project directory. The package.json file includes all the dependencies installed via npm. These packages are imported in ES module .js files and are loaded into the application asynchronously by default on runtime. 
 
-- ![#f03c15](https://placehold.co/15x15/f03c15/f03c15.png) `- node waam_app.js`
+Once the frontend completely loads, the user can interact with several modules that change the selected scenario or visualization state, causing the application to request or process the corresponding data and update the 3D scene and charts. Finally, the application is terminated upon clicking Ctrl + C in the terminal. 
+
+
